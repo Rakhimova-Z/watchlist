@@ -1,3 +1,4 @@
+import { sortLibrary, normalizeGenre, matchesGenres } from "./library-order.mjs";
 import { durationLabel, matchesDuration } from "./duration.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,6 +21,8 @@ const state = {
   category: "all",
   rewatch: "all",
   duration: "all",
+  genres: [],
+  sort: "added-desc",
   query: "",
   selected: null,
   epoch: 0,
@@ -165,13 +168,13 @@ async function loadLibrary(){
 
 function filtered(){
   const q=state.query.trim().toLowerCase();
-  return state.library.filter(x=>{
+  return sortLibrary(state.library.filter(x=>{
     const statusOk=state.status==="all"||x.status===state.status;
     const typeOk=state.category==="all"||x.category===state.category;
     const qOk=!q||x.title.toLowerCase().includes(q);
     const rewatchOk=state.rewatch==="all"||(x.rewatch_status||"none")===state.rewatch;
-    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration);
-  });
+    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration)&&matchesGenres(x,state.genres);
+  }),state.sort);
 }
 
 function renderStats(){
@@ -192,6 +195,7 @@ function renderLibrary(){
   });
   const items=filtered();
   renderStats();
+  renderFilterControls(items.length);
   $("#libraryEmpty h3").textContent=state.library.length?"Ничего не найдено":"Пока пусто";
   $("#libraryEmpty p").textContent=state.library.length?"Попробуй другие фильтры или название.":"Добавь первый тайтл — остальное сайт заполнит сам.";
   $("#libraryEmpty").classList.toggle("hidden",items.length>0);
@@ -235,6 +239,42 @@ $("#typeFilter").addEventListener("change",()=>{state.category=$("#typeFilter").
 $("#durationFilter").addEventListener("change",()=>{state.duration=$("#durationFilter").value;renderLibrary()});
 $("#rewatchFilter").addEventListener("change",()=>{state.rewatch=$("#rewatchFilter").value;renderLibrary()});
 $("#librarySearch").addEventListener("input",()=>{state.query=$("#librarySearch").value;renderLibrary()});
+
+$$(".control-panel").forEach(panel=>panel.addEventListener("toggle",()=>{
+  if(panel.open)panel.querySelector('.control-content').scrollIntoView({block:'nearest'});
+}));
+$("#applyFilters").addEventListener("click",()=>$("#filterPanel").open=false);
+document.addEventListener("click",e=>{
+  $$(".control-panel[open]").forEach(panel=>{if(!panel.contains(e.target))panel.open=false});
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")$$(".control-panel[open]").forEach(panel=>{panel.open=false;panel.querySelector('summary').focus()});
+});
+function renderFilterControls(count){
+  const genres=[...new Set(state.library.flatMap(x=>x.genres||[]).map(normalizeGenre).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const signature=JSON.stringify(genres);
+  if($("#genreFilters").dataset.signature!==signature){
+    $("#genreFilters").dataset.signature=signature;
+    $("#genreFilters").innerHTML=genres.length?genres.map(g=>`<label class="genre-option"><input type="checkbox" value="${esc(g)}"><span>${esc(g)}</span></label>`).join(""):"<p class='add-note'>В библиотеке пока нет жанров.</p>";
+  }
+  $$("#genreFilters input").forEach(el=>el.checked=state.genres.includes(el.value));
+  const active=[state.status,state.category,state.duration,state.rewatch].filter(v=>v!=="all").length+state.genres.length;
+  $("#filterCount").textContent=active;$("#filterCount").classList.toggle("hidden",!active);
+  const sortText=$("input[name=librarySort]:checked").nextElementSibling.textContent;
+  $("#librarySelection").textContent=`Показано ${count} из ${state.library.length} · ${sortText}${active?` · Фильтров: ${active}`:""}`;
+}
+$("#sortPanel").addEventListener("change",e=>{
+  if(e.target.name!=="librarySort")return;
+  state.sort=e.target.value;renderLibrary();$("#sortPanel").open=false;
+});
+$("#genreFilters").addEventListener("change",()=>{
+  state.genres=$$("#genreFilters input:checked").map(el=>el.value);renderLibrary();
+});
+$("#resetFilters").addEventListener("click",()=>{
+  state.status=state.category=state.duration=state.rewatch="all";state.genres=[];
+  $$("#statusFilters .segment").forEach(el=>el.classList.toggle("active",el.dataset.status==="all"));
+  ["#typeFilter","#durationFilter","#rewatchFilter"].forEach(id=>$(id).value="all");renderLibrary();
+});
 
 const normalizeTitle=s=>String(s||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^\p{L}\p{N}]+/gu," ").trim();
 function titleOf(x){return x.title||x.name||"Без названия"}

@@ -79,21 +79,34 @@
           <div id="existingNotice" class="existing-notice hidden"></div>
           <div id="searchResults" class="search-results"></div>
         </div>
-        <div class="toolbar">
-          <div class="segmented" id="statusFilters">
+        <div class="library-controls">
+          <label class="mini-search"><span>⌕</span><input id="librarySearch" type="search" placeholder="Найти в библиотеке" aria-label="Поиск по библиотеке"></label>
+          <details id="sortPanel" class="control-panel" name="library-controls">
+            <summary>↕ Сортировка</summary>
+            <div class="control-content sort-options"><label class="sort-option"><input type="radio" name="librarySort" value="added-desc" checked><span>Сначала недавно добавленные</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="added-asc" ><span>Сначала давно добавленные</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="release-desc" ><span>Год выхода: сначала новые</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="release-asc" ><span>Год выхода: сначала старые</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="duration-asc" ><span>Общее время: сначала короткие</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="duration-desc" ><span>Общее время: сначала длинные</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="title-asc" ><span>По алфавиту: А → Я</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="title-desc" ><span>По алфавиту: Я → А</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="rating-desc" ><span>Оценка: сначала высокая</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="rating-asc" ><span>Оценка: сначала низкая</span></label><p class="add-note">Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.</p></div>
+          </details>
+          <details id="filterPanel" class="control-panel" name="library-controls">
+            <summary>☷ Фильтры <span id="filterCount" class="group-count hidden"></span></summary>
+            <div class="control-content">
+              <div class="filter-heading"><strong>Фильтры</strong><button type="button" id="resetFilters" class="ghost">Сбросить</button></div>
+              <span class="filter-label">Статус</span>
+              <div class="segmented" id="statusFilters">
             <button class="segment active" data-status="all">Все</button>
             <button class="segment" data-status="queue">Очередь</button>
             <button class="segment" data-status="watching">Смотрю</button>
             <button class="segment" data-status="watched">Посмотрела</button>
             <button class="segment" data-status="dropped">Бросила</button>
           </div>
-
-          <div class="toolbar-right">
-            <label class="mini-search">
-              <span>⌕</span>
-              <input id="librarySearch" type="search" placeholder="Найти">
-            </label>
-            <select id="durationFilter" class="select" aria-label="Общее время тайтла">
+              <div class="filter-fields">            <label>Общее время<select id="durationFilter" class="select" aria-label="Общее время тайтла">
               <option value="all">Любая длительность</option>
               <option value="120">До 2 часов</option>
               <option value="300">До 5 часов</option>
@@ -101,14 +114,14 @@
               <option value="1200">До 20 часов</option>
               <option value="long">Больше 20 часов</option>
               <option value="unknown">Нет данных</option>
-            </select>
-            <select id="rewatchFilter" class="select" aria-label="Фильтр пересмотра">
+            </select></label>
+            <label>Пересмотр<select id="rewatchFilter" class="select" aria-label="Фильтр пересмотра">
               <option value="all">Любой пересмотр</option>
               <option value="planned">Хочу пересмотреть</option>
               <option value="rewatching">Пересматриваю</option>
               <option value="none">Без отметки</option>
-            </select>
-            <select id="typeFilter" class="select" aria-label="Тип тайтла">
+            </select></label>
+            <label>Тип<select id="typeFilter" class="select" aria-label="Тип тайтла">
               <option value="all">Все типы</option>
               <option value="movie">Фильмы</option>
               <option value="series">Сериалы</option>
@@ -116,9 +129,14 @@
               <option value="drama">Дорамы</option>
               <option value="cartoon">Мультфильмы</option>
               <option value="bl">BL / лакорны</option>
-            </select>
-          </div>
+            </select></label>
+</div>
+              <fieldset class="genre-field"><legend>Жанры</legend><p class="add-note">Можно выбрать несколько — подойдёт любой из выбранных.</p><div id="genreFilters" class="genre-options"></div></fieldset>
+              <button id="applyFilters" type="button" class="primary filter-done">Показать тайтлы</button>
+            </div>
+          </details>
         </div>
+        <p id="librarySelection" class="selection-note" role="status"></p>
 
         <div class="stats" id="stats"></div>
         <div class="library-groups" id="libraryGrid"></div>
