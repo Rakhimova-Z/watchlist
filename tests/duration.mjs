@@ -17,3 +17,9 @@ assert.equal(matchesDuration({...movie,runtime:1200},'long'),false);
 assert.equal(matchesDuration({...movie,runtime:1201},'long'),true);
 assert.equal(matchesDuration({},'all'),true);
 console.log('PASS: duration calculation, boundaries, missing data, TV season counting');
+
+assert.equal(durationLabel({media_type:'movie',runtime:null}),'');
+assert.equal(durationLabel({media_type:'tv',episodes:12}),'12 серий');
+assert.equal(durationLabel({media_type:'tv',episodes:21}),'21 серия');
+assert.equal(durationLabel({media_type:'tv',episodes:22}),'22 серии');
+assert.equal(durationLabel({media_type:'tv',episodes:0}),'');

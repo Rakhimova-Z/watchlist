@@ -95,7 +95,7 @@
 <label class="sort-option"><input type="radio" name="librarySort" value="title-asc" ><span>По алфавиту: А → Я</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="title-desc" ><span>По алфавиту: Я → А</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="rating-desc" ><span>Оценка: сначала высокая</span></label>
-<label class="sort-option"><input type="radio" name="librarySort" value="rating-asc" ><span>Оценка: сначала низкая</span></label><p class="add-note">Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.</p></div>
+<label class="sort-option"><input type="radio" name="librarySort" value="rating-asc" ><span>Оценка: сначала низкая</span></label><p id="sortScope" class="add-note">Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.</p></div>
           </details>
           <details id="filterPanel" class="control-panel" name="library-controls">
             <summary>☷ Фильтры <span id="filterCount" class="group-count hidden"></span></summary>
@@ -141,7 +141,7 @@
             </div>
           </details>
         </div>
-        <p id="librarySelection" class="selection-note" role="status"></p>
+        <div class="library-view-row"><p id="librarySelection" class="selection-note" role="status"></p><button id="groupToggle" type="button" class="ghost" aria-pressed="false">Показать всё</button></div>
 
         <div class="stats" id="stats"></div>
         <div class="library-groups" id="libraryGrid"></div>

@@ -184,3 +184,7 @@ button:disabled{cursor:wait;opacity:.5}
 .edit-form .favorite-field{display:flex;flex-direction:row;align-items:center;gap:10px}.favorite-field input{width:18px;height:18px;accent-color:var(--accent)}
 .favorite-filter{display:flex;gap:9px;align-items:center;margin-bottom:22px;font-size:14px}
 .year-field{border:0;padding:0;margin:24px 0 0;min-width:0}.year-field legend{font-size:14px}.year-range{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.year-range label{display:grid;gap:8px;font-size:12px;color:var(--muted)}.year-range input{width:100%;min-width:0;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text);font-size:16px}
+
+.library-view-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0 20px}.library-view-row .selection-note{margin:0}.library-view-row button{flex-shrink:0;color:var(--text)}
+.flat-grid{grid-template-columns:repeat(auto-fill,minmax(160px,200px))}.media-meta p{flex-wrap:wrap}.primary-genre{overflow-wrap:anywhere}
+@media(max-width:640px){.flat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.library-view-row{align-items:flex-start}.library-view-row button{font-size:12px}}

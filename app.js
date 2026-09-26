@@ -1,5 +1,5 @@
 import { sortLibrary, normalizeGenre, matchesGenres, matchesYears } from "./library-order.mjs";
-import { durationLabel, matchesDuration } from "./duration.mjs";
+import { durationLabel, matchesDuration, totalMinutes } from "./duration.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cfg = window.WATCHLIST_CONFIG || {};
@@ -26,6 +26,7 @@ const state = {
   yearFrom: "",
   yearTo: "",
   sort: "added-desc",
+  grouped: true,
   query: "",
   selected: null,
   epoch: 0,
@@ -214,20 +215,20 @@ function renderLibrary(){
       </div>
       <div class="media-meta">
         <h4>${esc(x.title)}</h4>
-        <p><span>${x.year||"—"}</span><span>${labels[x.category]||x.category||"—"}</span></p>
-        <p class="duration">${durationLabel(x)}</p>
+        <p><span>${x.year||"—"}</span>${x.genres?.[0]?`<span class="primary-genre">${esc(x.genres[0])}</span>`:""}</p>
+        ${durationLabel(x)?`<p class="duration">${durationLabel(x)}</p>`:""}
       </div>
     </button>
     <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
     </article>`;
-  $("#libraryGrid").innerHTML=categoryGroups.map(([category,title])=>{
+  $("#libraryGrid").innerHTML=state.grouped?categoryGroups.map(([category,title])=>{
     const group=items.filter(x=>x.category===category);
     if(!group.length)return "";
     return `<details class="library-group" data-group="${category}" ${collapsedGroups.has(category)?"":"open"}>
       <summary><span>${title}</span><span class="group-count">${group.length}</span></summary>
       <div class="grid">${group.map(card).join("")}</div>
     </details>`;
-  }).join("");
+  }).join(""):`<div class="grid flat-grid">${items.map(card).join("")}</div>`;
   $$(".library-group").forEach(group=>group.addEventListener("toggle",()=>{
     if(!group.isConnected)return;
     if(group.open)collapsedGroups.delete(group.dataset.group);else collapsedGroups.add(group.dataset.group);
@@ -237,6 +238,13 @@ function renderLibrary(){
   else {duplicateId=null;$("#existingNotice").classList.add("hidden")}
 }
 
+$("#groupToggle").addEventListener("click",()=>{
+  state.grouped=!state.grouped;
+  $("#groupToggle").textContent=state.grouped?"Показать всё":"По типам";
+  $("#groupToggle").setAttribute("aria-pressed",String(!state.grouped));
+  $("#sortScope").textContent=state.grouped?"Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.":"Общий список. Дата выхода — по году; тайтлы без данных идут последними.";
+  renderLibrary();
+});
 $("#statusFilters").addEventListener("click",e=>{
   const b=e.target.closest("[data-status]"); if(!b)return;
   state.status=b.dataset.status;
@@ -393,8 +401,8 @@ function openItem(x){
       <span class="result-kicker">${esc(labels[x.category])} · ${x.media_type==="movie"?"фильм":"сериал"}</span>
       <h3 id="detailTitle">${esc(x.title)}</h3>
       <div class="detail-facts">${facts.map(f=>`<span>${esc(f)}</span>`).join("")}</div>
-      <p class="total-duration">${durationLabel(x)}</p>
-      ${x.media_type==="tv"?'<p class="add-note">Общее время приблизительное: все серии × длительность серии.</p>':""}
+      ${durationLabel(x)?`<p class="total-duration">${durationLabel(x)}</p>`:""}
+      ${x.media_type==="tv"&&totalMinutes(x)!==null?'<p class="add-note">Общее время приблизительное: все серии × длительность серии.</p>':""}
       <p class="detail-overview">${esc(x.overview||"Описание пока отсутствует.")}</p>
       <div class="chips">${(x.genres||[]).map(g=>`<span class="chip">${esc(g)}</span>`).join("")}</div>
       <form id="editForm" class="edit-form">
