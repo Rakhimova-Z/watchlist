@@ -120,3 +120,17 @@ button:disabled{cursor:wait;opacity:.5}
 }
 
 #dialogClose{position:sticky;float:right;top:15px;right:auto;margin:15px 17px -53px 0}
+
+.rewatch-badge{position:absolute;bottom:10px;left:10px;right:10px;width:fit-content;max-width:calc(100% - 20px);padding:7px 9px;border:1px solid rgba(216,255,101,.3);border-radius:9px;background:rgba(11,12,16,.9);color:var(--accent);font-size:11px;line-height:1.4}
+.toolbar-right{flex-wrap:wrap;min-width:0}
+@media(max-width:860px){
+  .toolbar-right .mini-search{flex:1 1 100%}
+  .toolbar-right .select{flex:1 1 0;min-width:0;max-width:none;font-size:14px;padding-right:24px}
+}
+
+.media-meta .duration{margin-top:8px;color:#c8d8a0;font-size:11px}
+.total-duration{color:var(--accent);font-size:14px;margin:12px 0 8px}
+.toolbar{align-items:flex-start;flex-wrap:wrap}
+.toolbar-right{width:100%}
+.toolbar-right .mini-search{flex:1;min-width:180px}
+@media(max-width:860px){.toolbar-right .select{flex-basis:calc(50% - 10px)}.toolbar-right #durationFilter{flex-basis:100%}}

@@ -1,3 +1,4 @@
+import { durationLabel, matchesDuration } from "./duration.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cfg = window.WATCHLIST_CONFIG || {};
@@ -17,6 +18,8 @@ const state = {
   library: [],
   status: "all",
   category: "all",
+  rewatch: "all",
+  duration: "all",
   query: "",
   selected: null,
   epoch: 0,
@@ -33,6 +36,9 @@ const labels = {
   watching:"смотрю",
   watched:"посмотрела",
   dropped:"бросила",
+  none:"Без отметки",
+  planned:"Хочу пересмотреть",
+  rewatching:"Пересматриваю",
   movie:"фильм",
   series:"сериал",
   anime:"аниме",
@@ -105,7 +111,8 @@ function filtered(){
     const statusOk=state.status==="all"||x.status===state.status;
     const typeOk=state.category==="all"||x.category===state.category;
     const qOk=!q||x.title.toLowerCase().includes(q);
-    return statusOk&&typeOk&&qOk;
+    const rewatchOk=state.rewatch==="all"||(x.rewatch_status||"none")===state.rewatch;
+    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration);
   });
 }
 
@@ -129,10 +136,12 @@ function renderLibrary(){
       <div class="poster-wrap">
         ${x.poster_url?`<img src="${esc(x.poster_url)}" alt="${esc(x.title)}" loading="lazy">`:`<div class="poster-fallback">✦</div>`}
         <span class="badge">${labels[x.status]||x.status}</span>
+        ${["planned","rewatching"].includes(x.rewatch_status)?`<span class="rewatch-badge">↻ ${labels[x.rewatch_status]}</span>`:""}
       </div>
       <div class="media-meta">
         <h4>${esc(x.title)}</h4>
         <p><span>${x.year||"—"}</span><span>${labels[x.category]||x.category||"—"}</span></p>
+        <p class="duration">${durationLabel(x)}</p>
       </div>
     </button>`).join("");
 }
@@ -144,6 +153,8 @@ $("#statusFilters").addEventListener("click",e=>{
   renderLibrary();
 });
 $("#typeFilter").addEventListener("change",()=>{state.category=$("#typeFilter").value;renderLibrary()});
+$("#durationFilter").addEventListener("change",()=>{state.duration=$("#durationFilter").value;renderLibrary()});
+$("#rewatchFilter").addEventListener("change",()=>{state.rewatch=$("#rewatchFilter").value;renderLibrary()});
 $("#librarySearch").addEventListener("input",()=>{state.query=$("#librarySearch").value;renderLibrary()});
 
 const normalizeTitle=s=>String(s||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^\p{L}\p{N}]+/gu," ").trim();
@@ -230,6 +241,8 @@ function openItem(x){
       <span class="result-kicker">${esc(labels[x.category])} · ${x.media_type==="movie"?"фильм":"сериал"}</span>
       <h3 id="detailTitle">${esc(x.title)}</h3>
       <div class="detail-facts">${facts.map(f=>`<span>${esc(f)}</span>`).join("")}</div>
+      <p class="total-duration">${durationLabel(x)}</p>
+      ${x.media_type==="tv"?'<p class="add-note">Общее время приблизительное: все серии × длительность серии.</p>':""}
       <p class="detail-overview">${esc(x.overview||"Описание пока отсутствует.")}</p>
       <div class="chips">${(x.genres||[]).map(g=>`<span class="chip">${esc(g)}</span>`).join("")}</div>
       <form id="editForm" class="edit-form">
@@ -237,6 +250,8 @@ function openItem(x){
         <label class="full">Название<input name="title" required maxlength="500" value="${esc(x.title)}"></label>
         <label>Категория<select name="category">${options(["movie","series","anime","drama","cartoon","bl"],x.category)}</select></label>
         <label>Статус<select name="status">${options(["queue","watching","watched","dropped"],x.status)}</select></label>
+        <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
+        <p id="rewatchHint" class="add-note full">Отдельная отметка: статус, оценка и дата прошлого просмотра сохранятся.</p>
         <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Уже посмотрела? Можно поставить оценку и дату — или оставить их пустыми.</p>
         <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
@@ -284,7 +299,7 @@ function saveItem(e){
   e.preventDefault(); const form=new FormData(e.currentTarget);
   const title=String(form.get("title")).trim();
   if(!title){$("#editMessage").textContent="Название не может быть пустым.";return}
-  mutateItem("update",{title,category:form.get("category"),status:form.get("status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
+  mutateItem("update",{title,category:form.get("category"),status:form.get("status"),rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
 }
 $("#confirmDialog").addEventListener("close",()=>{if($("#confirmDialog").returnValue==="delete")mutateItem("delete")});
 $("#libraryGrid").addEventListener("click",e=>{

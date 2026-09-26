@@ -80,7 +80,22 @@
               <span>⌕</span>
               <input id="librarySearch" type="search" placeholder="Найти">
             </label>
-            <select id="typeFilter" class="select">
+            <select id="durationFilter" class="select" aria-label="Общее время тайтла">
+              <option value="all">Любая длительность</option>
+              <option value="120">До 2 часов</option>
+              <option value="300">До 5 часов</option>
+              <option value="600">До 10 часов</option>
+              <option value="1200">До 20 часов</option>
+              <option value="long">Больше 20 часов</option>
+              <option value="unknown">Нет данных</option>
+            </select>
+            <select id="rewatchFilter" class="select" aria-label="Фильтр пересмотра">
+              <option value="all">Любой пересмотр</option>
+              <option value="planned">Хочу пересмотреть</option>
+              <option value="rewatching">Пересматриваю</option>
+              <option value="none">Без отметки</option>
+            </select>
+            <select id="typeFilter" class="select" aria-label="Тип тайтла">
               <option value="all">Все типы</option>
               <option value="movie">Фильмы</option>
               <option value="series">Сериалы</option>
