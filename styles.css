@@ -147,3 +147,15 @@ button:disabled{cursor:wait;opacity:.5}
 .account-body .auth-copy{font-size:14px;line-height:1.6;margin:16px 0}
 .account-form .auth-note{line-height:1.5;overflow-wrap:anywhere}
 @media(max-width:420px){.topbar{gap:8px;padding:0 12px}.user-menu{gap:6px}.brand{font-size:14px;gap:7px}.user-menu .ghost{padding:8px}}
+
+.library-groups{display:grid;gap:28px}
+.library-group{min-width:0;border-top:1px solid var(--line);padding-top:18px}
+.library-group summary{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none;font:700 20px "Manrope",system-ui,sans-serif;padding:4px 0 18px}
+.library-group summary::-webkit-details-marker{display:none}
+.library-group summary::before{content:"›";color:var(--accent);font-size:25px;transition:transform .15s}
+.library-group[open] summary::before{transform:rotate(90deg)}
+.group-count{color:var(--muted);background:var(--surface-2);border-radius:20px;padding:4px 9px;font-size:12px}
+.library-group .grid{grid-template-columns:repeat(auto-fill,minmax(160px,200px))}
+.existing-notice{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:16px 0;padding:18px;border:1px solid rgba(216,255,101,.25);border-radius:16px;background:rgba(216,255,101,.045)}
+.existing-notice strong{color:var(--accent);font-size:14px}.existing-notice p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.existing-notice .ghost{flex-shrink:0;color:var(--text)}
+@media(max-width:640px){.library-group .grid{grid-template-columns:repeat(2,minmax(0,1fr))}.existing-notice{align-items:flex-start;flex-direction:column}.library-group summary{font-size:18px}}

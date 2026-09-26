@@ -22,7 +22,7 @@ const assert=require('node:assert/strict');
    signInWithOtp:async({email})=>{window.authCalls.push('magic');return {}},
    signInWithPassword:async({email,password})=>{window.authCalls.push('password');if(password!=='test-password-123')return {error:{code:'invalid_credentials',message:'Invalid'}};window.authChange('SIGNED_IN',{user:{id:'user-1',email}});return {}},
    getSession:async()=>({data:{session:{user:{id:'user-1',email:'test@example.com'}}}}),onAuthStateChange:cb=>{window.authChange=cb},signOut:async()=>{window.authChange('SIGNED_OUT',null);return {}}},
-   functions:{invoke:async(_, {body:b})=>({data:b.action==='search'?{results:b.query==='нет'?[]:b.query==='ошибка'?null:b.query==='Дюна'?[{id:1,media_type:'movie',title:'Дюна',release_date:'2021'},{id:2,media_type:'movie',title:'Дюна',release_date:'1984'}]:[{id:3,media_type:'tv',name:b.query,first_air_date:'2025'}]}:{id:b.id,media_type:b.mediaType,title:b.id===3?'Мисс Инкогнито':'Дюна',year:'2025',overview:'Описание тайтла',genres:['драма'],countries:['Корея'],seasons:1,episodes:12,runtime:60,suggested_category:'drama'},error:b.query==='ошибка'?{message:'Ошибка сети'}:null})},
+   functions:{invoke:async(_, {body:b})=>({data:b.action==='search'?{results:b.query==='нет'?[]:b.query==='ошибка'?null:b.query==='Дюна'?[{id:1,media_type:'movie',title:'Дюна',release_date:'2021'},{id:2,media_type:'movie',title:'Дюна',release_date:'1984'}]:[{id:3,media_type:'tv',name:b.query,first_air_date:'2025'}]}:{id:b.id,media_type:b.mediaType,title:b.id===3?'Мисс Инкогнито':'Дюна',year:'2025',overview:'Описание тайтла',genres:['драма'],countries:['Корея'],seasons:1,episodes:12,runtime:60,suggested_category:b.mediaType==='movie'?'movie':'drama'},error:b.query==='ошибка'?{message:'Ошибка сети'}:null})},
    from(){let kind='read',payload,filters={}; const q={select(){return q},eq(k,v){filters[k]=v;return q},order(){window.calls.push({kind,filters});return Promise.resolve({data:rows.slice()})},insert(v){kind='insert';payload=v;return q},update(v){kind='update';payload=v;return q},delete(){kind='delete';return q},async single(){window.calls.push({kind,payload,filters});if(window.failSave&&kind==='update')return {error:{message:'Сбой сохранения'}};
     if(kind==='insert'){const row={...payload,id:'row-'+payload.tmdb_id};rows.unshift(row);return {data:row}}
     const row=rows.find(x=>x.id===filters.id&&x.user_id===filters.user_id);if(!row)return {error:{message:'Not found'}};
@@ -41,13 +41,17 @@ const assert=require('node:assert/strict');
  await page.locator('#accountClose').click();
  async function search(q){await page.locator('#searchInput').fill(q);await page.locator('#searchInput').press('Enter');await page.waitForFunction(()=>!document.querySelector('#searchButton').disabled)}
  await search('Мисс Инкогнито');assert.equal(await page.locator('.media-card').count(),1);
+ assert.equal(await page.locator('.library-group').count(),1);assert.ok((await page.locator('.library-group summary').textContent()).includes('Дорамы'));
+ await page.locator('.library-group summary').click();await page.waitForFunction(()=>!document.querySelector('.library-group').open);assert.equal(await page.locator('.media-card').isVisible(),false);
+ await page.locator('#librarySearch').fill('Мисс');assert.equal(await page.locator('.library-group').getAttribute('open'),null);
+ await page.locator('.library-group summary').click();await page.locator('#librarySearch').fill('');
  assert.equal(await page.locator('.duration').textContent(),'≈ 12 ч всего');
  await page.locator('#durationFilter').selectOption('600');assert.equal(await page.locator('.media-card').count(),0);
  await page.locator('#durationFilter').selectOption('1200');assert.equal(await page.locator('.media-card').count(),1);
  await page.locator('#durationFilter').selectOption('unknown');assert.equal(await page.locator('.media-card').count(),0);
  await page.locator('#durationFilter').selectOption('all');
 
- await search('Мисс Инкогнито');await page.locator('#detailDialog').waitFor({state:'visible'});assert.equal(await page.locator('.media-card').count(),1);
+ await search('Мисс Инкогнито');assert.equal(await page.locator('#detailDialog').isVisible(),false);await page.getByText('Уже в библиотеке',{exact:true}).waitFor();assert.ok((await page.locator('#existingNotice').textContent()).includes('очередь'));await page.locator('#openExisting').click();await page.locator('#detailDialog').waitFor({state:'visible'});assert.equal(await page.locator('.media-card').count(),1);
  await page.locator('[name=title]').fill('Моё название');await page.locator('[name=status]').selectOption('watched');
  await page.locator('#watchedHint').waitFor({state:'visible'});await page.locator('[name=rating]').selectOption('9');await page.locator('[name=notes]').fill('<script>text</script>');
  await page.locator('#todayBtn').click();await page.locator('#editForm [type=submit]').click();await page.locator('#detailDialog').waitFor({state:'hidden'});
@@ -97,6 +101,12 @@ const assert=require('node:assert/strict');
  await page.locator('#accountBtn').click();await page.screenshot({path:'/tmp/watchlist-account-mobile.png'});
  assert.ok(await page.evaluate(()=>document.querySelector('#accountDialog').scrollWidth<=document.querySelector('#accountDialog').clientWidth));
  await page.locator('#accountClose').click();
+ await search('Мисс Инкогнито');assert.equal(await page.locator('.library-group').count(),2);
+ await page.locator('#typeFilter').selectOption('movie');assert.equal(await page.locator('.library-group').count(),1);assert.ok((await page.locator('.library-group summary').textContent()).includes('Фильмы'));
+ await page.locator('#typeFilter').selectOption('all');
+ await search('Мисс Инкогнито');assert.equal(await page.locator('#detailDialog').isVisible(),false);
+ await page.locator('#existingNotice').scrollIntoViewIfNeeded();await page.screenshot({path:'/tmp/watchlist-groups-mobile.png',fullPage:true});
+ await page.setViewportSize({width:1366,height:900});await page.screenshot({path:'/tmp/watchlist-groups-desktop.png',fullPage:true});
  assert.deepEqual(errors,[]);
  console.log('PASS: optional password setup/login/errors/magic fallback, local duration/filter, rewatch flags/filter/clear preserve status/rating/date, quick add, duplicate, ambiguity, edit, optional fields, errors, delete cancel/confirm, user scoping, logout, desktop/mobile layout, no JS errors');
  await browser.close();

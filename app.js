@@ -62,6 +62,7 @@ function applySession(session){
   const previous=state.user?.id;
   state.user=session?.user||null;
   if(previous!==state.user?.id){
+    collapsedGroups.clear();duplicateId=null;
     state.library=[]; state.selected=null; state.searchItems=[]; state.epoch++;
     $("#detailDialog").close(); $("#confirmDialog").close();
     $("#accountDialog").close();
@@ -182,13 +183,19 @@ function renderStats(){
     <span class="stat"><strong>${count("watched")}</strong> посмотрела</span>`;
 }
 
+const categoryGroups=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы'],['bl','BL / лакорны']];
+const collapsedGroups=new Set();
+let duplicateId=null;
 function renderLibrary(){
+  $$(".library-group").forEach(group=>{
+    if(group.open)collapsedGroups.delete(group.dataset.group);else collapsedGroups.add(group.dataset.group);
+  });
   const items=filtered();
   renderStats();
   $("#libraryEmpty h3").textContent=state.library.length?"Ничего не найдено":"Пока пусто";
   $("#libraryEmpty p").textContent=state.library.length?"Попробуй другие фильтры или название.":"Добавь первый тайтл — остальное сайт заполнит сам.";
   $("#libraryEmpty").classList.toggle("hidden",items.length>0);
-  $("#libraryGrid").innerHTML=items.map(x=>`
+  const card=x=>`
     <button type="button" class="media-card" data-id="${esc(x.id)}" aria-label="Открыть ${esc(x.title)}">
       <div class="poster-wrap">
         ${x.poster_url?`<img src="${esc(x.poster_url)}" alt="${esc(x.title)}" loading="lazy">`:`<div class="poster-fallback">✦</div>`}
@@ -200,7 +207,22 @@ function renderLibrary(){
         <p><span>${x.year||"—"}</span><span>${labels[x.category]||x.category||"—"}</span></p>
         <p class="duration">${durationLabel(x)}</p>
       </div>
-    </button>`).join("");
+    </button>`;
+  $("#libraryGrid").innerHTML=categoryGroups.map(([category,title])=>{
+    const group=items.filter(x=>x.category===category);
+    if(!group.length)return "";
+    return `<details class="library-group" data-group="${category}" ${collapsedGroups.has(category)?"":"open"}>
+      <summary><span>${title}</span><span class="group-count">${group.length}</span></summary>
+      <div class="grid">${group.map(card).join("")}</div>
+    </details>`;
+  }).join("");
+  $$(".library-group").forEach(group=>group.addEventListener("toggle",()=>{
+    if(!group.isConnected)return;
+    if(group.open)collapsedGroups.delete(group.dataset.group);else collapsedGroups.add(group.dataset.group);
+  }));
+  const duplicate=state.library.find(x=>x.id===duplicateId);
+  if(duplicate)showExisting(duplicate);
+  else {duplicateId=null;$("#existingNotice").classList.add("hidden")}
 }
 
 $("#statusFilters").addEventListener("click",e=>{
@@ -221,7 +243,17 @@ function obviousMatch(items,query){
   const exact=items.filter(x=>[titleOf(x),x.original_title,x.original_name].some(t=>normalizeTitle(t)===normalizeTitle(query)));
   return exact.length===1?exact[0]:null;
 }
-function searchMessage(message){$("#searchState").textContent=message;$("#searchState").classList.remove("hidden")}
+function searchMessage(message){duplicateId=null;$("#existingNotice").classList.add("hidden");$("#searchState").textContent=message;$("#searchState").classList.remove("hidden")}
+function showExisting(item){
+  duplicateId=item.id;
+  $("#searchState").classList.add("hidden");
+  $("#existingNotice").classList.remove("hidden");
+  $("#existingNotice").innerHTML=`<div role="status"><strong>Уже в библиотеке</strong><p>«${esc(item.title)}» · Статус: ${esc(labels[item.status]||item.status)}${["planned","rewatching"].includes(item.rewatch_status)?` · ${labels[item.rewatch_status]}`:""}</p></div><button type="button" class="ghost" id="openExisting">Открыть карточку</button>`;
+  $("#openExisting").addEventListener("click",()=>{
+    const current=state.library.find(x=>x.id===duplicateId);
+    if(current)openItem(current);
+  });
+}
 function setSearchBusy(busy){
   state.busy=busy;
   $("#searchButton").disabled=busy; $("#searchInput").disabled=busy;
@@ -269,7 +301,7 @@ $("#searchResults").addEventListener("click",async e=>{
 async function addResult(result,epoch){
   const userId=state.user.id;
   const existing=state.library.find(x=>Number(x.tmdb_id)===Number(result.id)&&x.media_type===result.media_type);
-  if(existing){searchMessage("Этот тайтл уже есть в библиотеке.");openItem(existing);return}
+  if(existing){showExisting(existing);return}
   searchMessage(`Добавляю «${titleOf(result)}»…`);
   const x=await tmdb({action:"details",mediaType:result.media_type,id:Number(result.id)});
   if(epoch!==state.epoch)return;
@@ -280,7 +312,13 @@ async function addResult(result,epoch){
   const {data,error}=await supabase.from("watchlist_items").insert(row).select().single();
   if(epoch!==state.epoch)return;
   if(error){
-    if(error.code==="23505"){searchMessage("Этот тайтл уже есть в библиотеке.");await loadLibrary();return}
+    if(error.code==="23505"){
+      searchMessage("Этот тайтл уже есть в библиотеке.");await loadLibrary();
+      if(epoch!==state.epoch)return;
+      const duplicate=state.library.find(item=>Number(item.tmdb_id)===Number(result.id)&&item.media_type===result.media_type);
+      if(duplicate)showExisting(duplicate);
+      return;
+    }
     throw error;
   }
   state.library.unshift(data); renderLibrary();
