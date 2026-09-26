@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0c10">
+  <title>Watchlist</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="noise"></div>
+
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="logo">W</div>
+      <p class="eyebrow">Личная медиатека</p>
+      <h1>Твои фильмы.<br>Твои сериалы.<br><span>Везде с тобой.</span></h1>
+      <p class="auth-copy">Войди по email — библиотека будет синхронизироваться между устройствами.</p>
+
+      <form id="loginForm" class="login-form">
+        <input id="emailInput" type="email" required autocomplete="email" placeholder="you@example.com">
+        <button class="primary" type="submit">Получить ссылку для входа</button>
+      </form>
+      <p class="auth-note" id="authNote"></p>
+    </div>
+  </section>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-mark">W</span>
+        <span>watchlist</span>
+      </a>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="library">Библиотека</button>
+        <button class="nav-btn" data-view="discover">Добавить</button>
+      </nav>
+
+      <div class="user-menu">
+        <span id="userEmail"></span>
+        <button id="logoutBtn" class="ghost">Выйти</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Что смотрим дальше?</p>
+          <h2>Моя<br><span>медиатека.</span></h2>
+          <p class="hero-copy">Никакого ручного заполнения постеров, годов и количества серий.</p>
+        </div>
+
+        <button class="random-card" id="randomBtn">
+          <span class="random-icon">↻</span>
+          <span>
+            <small>не могу выбрать</small>
+            <strong>Выбери за меня</strong>
+          </span>
+        </button>
+      </section>
+
+      <section id="libraryView" class="view active">
+        <div class="toolbar">
+          <div class="segmented" id="statusFilters">
+            <button class="segment active" data-status="all">Все</button>
+            <button class="segment" data-status="queue">Очередь</button>
+            <button class="segment" data-status="watching">Смотрю</button>
+            <button class="segment" data-status="watched">Посмотрела</button>
+            <button class="segment" data-status="dropped">Бросила</button>
+          </div>
+
+          <div class="toolbar-right">
+            <label class="mini-search">
+              <span>⌕</span>
+              <input id="librarySearch" type="search" placeholder="Найти">
+            </label>
+            <select id="typeFilter" class="select">
+              <option value="all">Все типы</option>
+              <option value="movie">Фильмы</option>
+              <option value="series">Сериалы</option>
+              <option value="anime">Аниме</option>
+              <option value="drama">Дорамы</option>
+              <option value="cartoon">Мультфильмы</option>
+              <option value="bl">BL / лакорны</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+        <div class="grid" id="libraryGrid"></div>
+
+        <div class="empty hidden" id="libraryEmpty">
+          <div class="empty-orbit">✦</div>
+          <h3>Пока пусто</h3>
+          <p>Добавь первый тайтл — остальное сайт заполнит сам.</p>
+          <button class="primary" data-open-add>Добавить тайтл</button>
+        </div>
+      </section>
+
+      <section id="discoverView" class="view">
+        <div class="discover-shell">
+          <div class="discover-copy">
+            <p class="eyebrow">Добавление</p>
+            <h3>Только название.<br><span>Остальное — само.</span></h3>
+            <p>Поиск идёт через TMDB, а карточка сохраняется в твою облачную библиотеку.</p>
+          </div>
+
+          <div>
+            <form id="searchForm" class="search-box">
+              <input id="searchInput" type="search" autocomplete="off" placeholder="Например, Lovely Runner">
+              <button class="primary" type="submit">Найти</button>
+            </form>
+
+            <div class="search-state" id="searchState">
+              <span class="sparkle">✦</span>
+              Введи название фильма или сериала
+            </div>
+            <div class="search-results" id="searchResults"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="detailDialog">
+      <button class="dialog-close" id="dialogClose">×</button>
+      <div id="dialogContent"></div>
+    </dialog>
+
+    <div class="toast" id="toast"></div>
+
+    <footer>
+      <span>Данные о тайтлах: TMDB</span>
+      <span>Хранение и синхронизация: Supabase</span>
+    </footer>
+  </div>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
