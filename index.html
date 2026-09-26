@@ -32,11 +32,6 @@
         <span>watchlist</span>
       </a>
 
-      <nav class="nav">
-        <button class="nav-btn active" data-view="library">Библиотека</button>
-        <button class="nav-btn" data-view="discover">Добавить</button>
-      </nav>
-
       <div class="user-menu">
         <span id="userEmail"></span>
         <button id="logoutBtn" class="ghost">Выйти</button>
@@ -61,6 +56,16 @@
       </section>
 
       <section id="libraryView" class="view active">
+        <div class="quick-add">
+          <label for="searchInput" class="eyebrow">Добавить в очередь</label>
+          <form id="searchForm" class="search-box">
+            <input id="searchInput" type="search" required autocomplete="off" placeholder="Что хочешь посмотреть?" aria-label="Название фильма или сериала">
+            <button id="searchButton" class="primary" type="submit" aria-label="Найти и добавить">+</button>
+          </form>
+          <p class="add-note">Введи название и нажми Enter. Если есть похожие — выберем нужный.</p>
+          <div id="searchState" class="search-state hidden" role="status"></div>
+          <div id="searchResults" class="search-results"></div>
+        </div>
         <div class="toolbar">
           <div class="segmented" id="statusFilters">
             <button class="segment active" data-status="all">Все</button>
@@ -98,36 +103,21 @@
         </div>
       </section>
 
-      <section id="discoverView" class="view">
-        <div class="discover-shell">
-          <div class="discover-copy">
-            <p class="eyebrow">Добавление</p>
-            <h3>Только название.<br><span>Остальное — само.</span></h3>
-            <p>Поиск идёт через TMDB, а карточка сохраняется в твою облачную библиотеку.</p>
-          </div>
-
-          <div>
-            <form id="searchForm" class="search-box">
-              <input id="searchInput" type="search" autocomplete="off" placeholder="Например, Lovely Runner">
-              <button class="primary" type="submit">Найти</button>
-            </form>
-
-            <div class="search-state" id="searchState">
-              <span class="sparkle">✦</span>
-              Введи название фильма или сериала
-            </div>
-            <div class="search-results" id="searchResults"></div>
-          </div>
-        </div>
-      </section>
     </main>
 
-    <dialog id="detailDialog">
-      <button class="dialog-close" id="dialogClose">×</button>
+    <dialog id="detailDialog" aria-labelledby="detailTitle">
+      <button class="dialog-close" id="dialogClose" aria-label="Закрыть">×</button>
       <div id="dialogContent"></div>
     </dialog>
 
-    <div class="toast" id="toast"></div>
+    <dialog id="confirmDialog" aria-labelledby="confirmTitle">
+      <form method="dialog" class="confirm-body">
+        <h3 id="confirmTitle">Удалить тайтл?</h3>
+        <p id="confirmText"></p>
+        <div class="form-actions"><button class="ghost" value="cancel" autofocus>Отмена</button><button class="danger" value="delete">Удалить</button></div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status"></div>
 
     <footer>
       <span>Данные о тайтлах: TMDB</span>
