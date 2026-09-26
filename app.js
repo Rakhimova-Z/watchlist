@@ -16,6 +16,8 @@ const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
 
 const state = {
   user: null,
+  profile: null,
+  profileLoaded: false,
   library: [],
   status: "all",
   category: "all",
@@ -69,19 +71,22 @@ function applySession(session){
   const previous=state.user?.id;
   state.user=session?.user||null;
   if(previous!==state.user?.id){
+    state.profile=null;state.profileLoaded=false;
+    $("#settingsDialog").close();
     collapsedGroups.clear();duplicateId=null;
     state.library=[]; state.selected=null; state.searchItems=[]; state.epoch++;
     $("#detailDialog").close(); $("#confirmDialog").close();
     $("#accountDialog").close();
     $("#setPasswordForm").reset(); $("#passwordLoginForm").reset();
+    $(".password-login").open=false;
     $("#searchResults").innerHTML=""; $("#searchInput").value="";
     $("#searchState").classList.add("hidden"); renderLibrary();
   }
   $("#authScreen").classList.toggle("hidden",!!state.user);
   $("#app").classList.toggle("hidden",!state.user);
   if(state.user){
-    $("#userEmail").textContent=state.user.email||"";
-    if(previous!==state.user.id) setTimeout(loadLibrary,0);
+    $("#userEmail").textContent=state.profile?.username||state.user.email||"";
+    if(previous!==state.user.id) setTimeout(()=>{loadLibrary();loadProfile()},0);
   }
 }
 
@@ -113,10 +118,10 @@ $("#loginForm").addEventListener("submit",e=>{
 $("#passwordLoginForm").addEventListener("submit",e=>{
   e.preventDefault();
   const email=$("#passwordEmail").value.trim(),password=$("#loginPassword").value;
-  login(e.currentTarget,$("#passwordLoginNote"),()=>supabase.auth.signInWithPassword({email,password}),"Вход выполнен");
+  login(e.currentTarget,$("#passwordLoginNote"),()=>passwordSignIn(email,password),"Вход выполнен");
 });
 $("#forgotPassword").addEventListener("click",()=>{
-  $("#emailInput").value=$("#passwordEmail").value;
+  $("#emailInput").value=$("#passwordEmail").value.includes("@")?$("#passwordEmail").value:"";
   $("#loginPassword").value="";
   $(".password-login").open=false;
   $("#authNote").textContent="Получи ссылку для входа. Затем в «Аккаунт» можно задать новый пароль.";
@@ -125,11 +130,14 @@ $("#forgotPassword").addEventListener("click",()=>{
 $("#accountBtn").addEventListener("click",()=>{
   if(!state.user)return;
   $("#setPasswordForm").reset();$("#accountEmail").value=state.user.email||"";
-  $("#accountNote").textContent="";$("#accountDialog").showModal();
+  $("#accountNote").textContent="";
+  $("#usernameInput").value=state.profile?.username||"";$("#usernameNote").textContent="";
+  $("#usernameForm button").disabled=!state.profileLoaded;
+  $("#accountDialog").showModal();
 });
 let passwordBusy=false;
-$("#accountClose").addEventListener("click",()=>{if(!passwordBusy)$("#accountDialog").close()});
-$("#accountDialog").addEventListener("cancel",e=>{if(passwordBusy)e.preventDefault()});
+$("#accountClose").addEventListener("click",()=>{if(!passwordBusy&&!profileBusy)$("#accountDialog").close()});
+$("#accountDialog").addEventListener("cancel",e=>{if(passwordBusy||profileBusy)e.preventDefault()});
 $("#accountDialog").addEventListener("close",()=>$("#setPasswordForm").reset());
 $("#setPasswordForm").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -191,6 +199,66 @@ function renderStats(){
 }
 
 const categoryGroups=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы'],['bl','BL / лакорны']];
+const defaultOrder=categoryGroups.map(([key])=>key);
+function validOrder(order){return Array.isArray(order)&&order.length===6&&new Set(order).size===6&&order.every(key=>defaultOrder.includes(key))}
+function orderedGroups(){const order=validOrder(state.profile?.section_order)?state.profile.section_order:defaultOrder;return order.map(key=>categoryGroups.find(([value])=>value===key))}
+let profileBusy=false,orderDraft=[];
+async function passwordSignIn(identifier,password){
+  if(identifier.includes('@'))return supabase.auth.signInWithPassword({email:identifier,password});
+  const {data,error}=await supabase.functions.invoke('username-login',{body:{username:identifier.trim().toLowerCase(),password}});
+  if(error||data?.error){
+    let message=data?.error;
+    if(!message&&error?.context){try{message=(await error.context.json()).error}catch{}}
+    throw new Error(message||'Не удалось войти. Проверь имя и пароль или войди по ссылке.');
+  }
+  if(!data?.access_token||!data?.refresh_token)throw new Error('Не удалось войти. Попробуй ещё раз.');
+  return supabase.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+}
+async function loadProfile(){
+  const userId=state.user?.id,epoch=state.epoch;if(!userId)return;
+  try{
+    const {data,error}=await supabase.from('watchlist_profiles').select('*').eq('user_id',userId).maybeSingle();
+    if(epoch!==state.epoch)return;
+    if(error)throw error;
+    state.profile=data||{user_id:userId,username:null,section_order:[...defaultOrder]};state.profileLoaded=true;
+    $('#userEmail').textContent=state.profile.username||state.user.email||'';
+    $('#usernameForm button').disabled=false;renderLibrary();
+  }catch(error){if(epoch===state.epoch)toast('Не удалось загрузить настройки. Обнови страницу.',true)}
+}
+async function saveProfile(changes,note){
+  if(profileBusy||!state.user||!state.profileLoaded)return false;
+  const epoch=state.epoch;profileBusy=true;note.textContent='Сохраняю…';
+  const controls=$$('#usernameForm input, #usernameForm button, #sectionOrder button, #saveOrder, #resetOrder, #settingsClose');
+  controls.forEach(el=>el.disabled=true);
+  try{
+    const {data,error}=await supabase.from('watchlist_profiles').upsert({...state.profile,...changes,user_id:state.user.id},{onConflict:'user_id'}).select().single();
+    if(epoch!==state.epoch)return false;
+    if(error)throw error;
+    state.profile=data;$('#userEmail').textContent=data.username||state.user.email||'';renderLibrary();note.textContent='Сохранено';return true;
+  }catch(error){if(epoch===state.epoch)note.textContent=error.code==='23505'?'Это имя уже занято. Попробуй другое.':`Не удалось сохранить: ${error.message}`;return false}
+  finally{profileBusy=false;controls.forEach(el=>el.disabled=false);if($('#settingsDialog').open)renderOrder()}
+}
+$('#usernameForm').addEventListener('submit',e=>{e.preventDefault();saveProfile({username:$('#usernameInput').value.trim().toLowerCase()||null},$('#usernameNote'))});
+function renderOrder(){
+  $('#sectionOrder').innerHTML=orderDraft.map((key,index)=>{
+    const title=categoryGroups.find(([value])=>value===key)[1];
+    return `<li><span>${esc(title)}</span><button class="ghost" data-move="-1" data-index="${index}" aria-label="${esc(title)} выше" ${index===0?'disabled':''}>↑</button><button class="ghost" data-move="1" data-index="${index}" aria-label="${esc(title)} ниже" ${index===orderDraft.length-1?'disabled':''}>↓</button></li>`;
+  }).join('');
+}
+$('#settingsBtn').addEventListener('click',()=>{
+  if(!state.profileLoaded){toast('Настройки ещё не загружены. Обнови страницу, если ожидание затянулось.',true);return}
+  orderDraft=[...state.profile.section_order];renderOrder();$('#settingsNote').textContent='';$('#settingsDialog').showModal();
+});
+$('#sectionOrder').addEventListener('click',e=>{
+  const button=e.target.closest('[data-move]');if(!button||profileBusy)return;
+  const index=Number(button.dataset.index),next=index+Number(button.dataset.move);if(next<0||next>=orderDraft.length)return;
+  [orderDraft[index],orderDraft[next]]=[orderDraft[next],orderDraft[index]];renderOrder();
+  $(`#sectionOrder [data-index="${next}"][data-move="${button.dataset.move}"]`)?.focus();
+});
+$('#resetOrder').addEventListener('click',()=>{orderDraft=[...defaultOrder];renderOrder()});
+$('#saveOrder').addEventListener('click',()=>saveProfile({section_order:[...orderDraft]},$('#settingsNote')));
+$('#settingsClose').addEventListener('click',()=>{if(!profileBusy)$('#settingsDialog').close()});
+$('#settingsDialog').addEventListener('cancel',e=>{if(profileBusy)e.preventDefault()});
 const collapsedGroups=new Set();
 let duplicateId=null;
 const favoritePending=new Set();
@@ -221,7 +289,7 @@ function renderLibrary(){
     </button>
     <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
     </article>`;
-  $("#libraryGrid").innerHTML=state.grouped?categoryGroups.map(([category,title])=>{
+  $("#libraryGrid").innerHTML=state.grouped?orderedGroups().map(([category,title])=>{
     const group=items.filter(x=>x.category===category);
     if(!group.length)return "";
     return `<details class="library-group" data-group="${category}" ${collapsedGroups.has(category)?"":"open"}>

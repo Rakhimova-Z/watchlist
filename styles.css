@@ -188,3 +188,8 @@ button:disabled{cursor:wait;opacity:.5}
 .library-view-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0 20px}.library-view-row .selection-note{margin:0}.library-view-row button{flex-shrink:0;color:var(--text)}
 .flat-grid{grid-template-columns:repeat(auto-fill,minmax(160px,200px))}.media-meta p{flex-wrap:wrap}.primary-genre{overflow-wrap:anywhere}
 @media(max-width:640px){.flat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.library-view-row{align-items:flex-start}.library-view-row button{font-size:12px}}
+
+#settingsDialog{width:min(520px,94vw)}.section-order{list-style:none;padding:0;margin:24px 0;display:grid;gap:10px}.section-order li{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px}.section-order li span{flex:1;font-size:14px}.section-order button{min-width:38px}.section-order button:disabled{cursor:default;opacity:.25}
+#usernameForm{padding-bottom:24px;border-bottom:1px solid var(--line)}
+.user-menu #userEmail{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:860px){.topbar{height:auto;min-height:76px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.user-menu{flex-wrap:wrap;justify-content:flex-end}.user-menu #userEmail{display:block;max-width:110px}.brand{margin-right:auto}}
