@@ -85,7 +85,8 @@ footer{width:min(1400px,92vw);margin:0 auto;padding:24px 0 38px;border-top:1px s
 .result-card:disabled{opacity:.55;cursor:wait}
 .media-card{border:0;padding:0;background:transparent;text-align:left;color:var(--text);border-radius:18px}
 :focus-visible{outline:2px solid var(--accent)!important;outline-offset:4px}
-.search-box:focus-within{border-color:var(--accent)}
+.search-box:focus-within,.mini-search:focus-within{border-color:var(--accent)}
+.search-box input:focus-visible,.mini-search input:focus-visible{outline:none!important}
 body:has(dialog[open]){overflow:hidden}
 dialog{max-height:92dvh;overscroll-behavior:contain}
 .detail{grid-template-columns:280px minmax(0,1fr)}
