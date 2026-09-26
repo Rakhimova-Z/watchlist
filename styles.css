@@ -134,3 +134,16 @@ button:disabled{cursor:wait;opacity:.5}
 .toolbar-right{width:100%}
 .toolbar-right .mini-search{flex:1;min-width:180px}
 @media(max-width:860px){.toolbar-right .select{flex-basis:calc(50% - 10px)}.toolbar-right #durationFilter{flex-basis:100%}}
+
+.password-login{margin-top:24px;border-top:1px solid var(--line);padding-top:20px}
+.password-login summary{cursor:pointer;color:var(--accent);font-size:14px}
+.account-form{display:grid;gap:14px;margin-top:20px}
+.account-form label{display:grid;gap:7px;color:var(--muted);font-size:13px}
+.account-form input{width:100%;min-width:0;border:1px solid var(--line);background:#0d0f14;color:var(--text);border-radius:12px;padding:13px;font-size:16px}
+.account-form input[readonly]{color:var(--muted)}
+#accountDialog{width:min(520px,94vw)}
+.account-body{padding:48px 28px 28px}
+.account-body h3{font:700 24px "Manrope",system-ui,sans-serif;margin:0}
+.account-body .auth-copy{font-size:14px;line-height:1.6;margin:16px 0}
+.account-form .auth-note{line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:420px){.topbar{gap:8px;padding:0 12px}.user-menu{gap:6px}.brand{font-size:14px;gap:7px}.user-menu .ghost{padding:8px}}

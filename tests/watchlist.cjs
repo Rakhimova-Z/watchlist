@@ -16,7 +16,12 @@ const assert=require('node:assert/strict');
  await page.route('https://esm.sh/**',r=>r.fulfill({contentType:'text/javascript',body:`
  export function createClient(){
   let rows=[];window.calls=[];window.failSave=false;
-  return {auth:{getSession:async()=>({data:{session:{user:{id:'user-1',email:'test@example.com'}}}}),onAuthStateChange:cb=>{window.authChange=cb},signOut:async()=>{window.authChange('SIGNED_OUT',null);return {}}},
+  window.authCalls=[];
+  return {auth:{
+   updateUser:async({password})=>{window.authCalls.push('update');if(window.rejectPassword)return {error:{message:'Пароль не принят'}};return {data:{user:{id:'user-1'}}}},
+   signInWithOtp:async({email})=>{window.authCalls.push('magic');return {}},
+   signInWithPassword:async({email,password})=>{window.authCalls.push('password');if(password!=='test-password-123')return {error:{code:'invalid_credentials',message:'Invalid'}};window.authChange('SIGNED_IN',{user:{id:'user-1',email}});return {}},
+   getSession:async()=>({data:{session:{user:{id:'user-1',email:'test@example.com'}}}}),onAuthStateChange:cb=>{window.authChange=cb},signOut:async()=>{window.authChange('SIGNED_OUT',null);return {}}},
    functions:{invoke:async(_, {body:b})=>({data:b.action==='search'?{results:b.query==='нет'?[]:b.query==='ошибка'?null:b.query==='Дюна'?[{id:1,media_type:'movie',title:'Дюна',release_date:'2021'},{id:2,media_type:'movie',title:'Дюна',release_date:'1984'}]:[{id:3,media_type:'tv',name:b.query,first_air_date:'2025'}]}:{id:b.id,media_type:b.mediaType,title:b.id===3?'Мисс Инкогнито':'Дюна',year:'2025',overview:'Описание тайтла',genres:['драма'],countries:['Корея'],seasons:1,episodes:12,runtime:60,suggested_category:'drama'},error:b.query==='ошибка'?{message:'Ошибка сети'}:null})},
    from(){let kind='read',payload,filters={}; const q={select(){return q},eq(k,v){filters[k]=v;return q},order(){window.calls.push({kind,filters});return Promise.resolve({data:rows.slice()})},insert(v){kind='insert';payload=v;return q},update(v){kind='update';payload=v;return q},delete(){kind='delete';return q},async single(){window.calls.push({kind,payload,filters});if(window.failSave&&kind==='update')return {error:{message:'Сбой сохранения'}};
     if(kind==='insert'){const row={...payload,id:'row-'+payload.tmdb_id};rows.unshift(row);return {data:row}}
@@ -26,6 +31,14 @@ const assert=require('node:assert/strict');
  }` }));
  await page.goto('https://watchlist.test/');
  await page.locator('#app').waitFor({state:'visible'});
+ await page.locator('#accountBtn').click();
+ await page.locator('#newPassword').fill('test-password-123');await page.locator('#confirmPassword').fill('different-password');
+ await page.locator('#setPasswordForm [type=submit]').click();await page.getByText('Пароли не совпадают.',{exact:true}).waitFor();assert.deepEqual(await page.evaluate(()=>window.authCalls),[]);
+ await page.locator('#confirmPassword').fill('test-password-123');await page.locator('#setPasswordForm [type=submit]').click();await page.getByText('Пароль сохранён. Теперь можно входить с паролем или по ссылке.',{exact:true}).waitFor();
+ assert.equal(await page.locator('#newPassword').inputValue(),'');
+ await page.evaluate(()=>window.rejectPassword=true);await page.locator('#newPassword').fill('test-password-123');await page.locator('#confirmPassword').fill('test-password-123');await page.locator('#setPasswordForm [type=submit]').click();await page.getByText('Пароль не принят',{exact:true}).waitFor();
+ assert.equal(await page.locator('#newPassword').isEnabled(),true);
+ await page.locator('#accountClose').click();
  async function search(q){await page.locator('#searchInput').fill(q);await page.locator('#searchInput').press('Enter');await page.waitForFunction(()=>!document.querySelector('#searchButton').disabled)}
  await search('Мисс Инкогнито');assert.equal(await page.locator('.media-card').count(),1);
  assert.equal(await page.locator('.duration').textContent(),'≈ 12 ч всего');
@@ -74,7 +87,17 @@ const assert=require('node:assert/strict');
  for(const c of calls){if(c.kind==='insert')assert.equal(c.payload.user_id,'user-1');else assert.equal(c.filters.user_id,'user-1')}
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.locator('#logoutBtn').click();await page.locator('#authScreen').waitFor({state:'visible'});assert.equal(await page.locator('.media-card').count(),0);
+ assert.equal(await page.locator('.password-login').getAttribute('open'),null);
+ await page.locator('#emailInput').fill('test@example.com');await page.locator('#loginForm [type=submit]').click();await page.getByText('Ссылка для входа отправлена на почту ✦',{exact:true}).waitFor();
+ await page.locator('.password-login summary').click();await page.locator('#passwordEmail').fill('test@example.com');await page.locator('#loginPassword').fill('wrong-password');await page.locator('#passwordLoginForm [type=submit]').click();await page.getByText('Не подошли email или пароль. Можно войти по ссылке.',{exact:true}).waitFor();
+ assert.equal(await page.locator('#loginPassword').inputValue(),'');
+ await page.locator('#forgotPassword').click();assert.equal(await page.locator('#emailInput').inputValue(),'test@example.com');
+ await page.locator('.password-login summary').click();await page.locator('#loginPassword').fill('test-password-123');await page.locator('#passwordLoginForm [type=submit]').click();await page.locator('#app').waitFor({state:'visible'});
+ assert.equal(await page.locator('#loginPassword').inputValue(),'');await page.locator('.media-card').waitFor();assert.equal(await page.locator('.media-card').count(),1);
+ await page.locator('#accountBtn').click();await page.screenshot({path:'/tmp/watchlist-account-mobile.png'});
+ assert.ok(await page.evaluate(()=>document.querySelector('#accountDialog').scrollWidth<=document.querySelector('#accountDialog').clientWidth));
+ await page.locator('#accountClose').click();
  assert.deepEqual(errors,[]);
- console.log('PASS: local duration/filter, rewatch flags/filter/clear preserve status/rating/date, quick add, duplicate, ambiguity, edit, optional fields, errors, delete cancel/confirm, user scoping, logout, desktop/mobile layout, no JS errors');
+ console.log('PASS: optional password setup/login/errors/magic fallback, local duration/filter, rewatch flags/filter/clear preserve status/rating/date, quick add, duplicate, ambiguity, edit, optional fields, errors, delete cancel/confirm, user scoping, logout, desktop/mobile layout, no JS errors');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

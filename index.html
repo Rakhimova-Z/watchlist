@@ -18,10 +18,21 @@
       <p class="auth-copy">Войди по email — библиотека будет синхронизироваться между устройствами.</p>
 
       <form id="loginForm" class="login-form">
-        <input id="emailInput" type="email" required autocomplete="email" placeholder="you@example.com">
+        <input id="emailInput" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email для входа по ссылке">
         <button class="primary" type="submit">Получить ссылку для входа</button>
       </form>
-      <p class="auth-note" id="authNote"></p>
+      <p class="auth-note" id="authNote" role="status"></p>
+      <details class="password-login">
+        <summary>Войти с паролем</summary>
+        <p class="add-note">Если ты уже задала пароль в аккаунте. Пароль необязателен — вход по ссылке всегда доступен.</p>
+        <form id="passwordLoginForm" class="account-form">
+          <label>Email<input id="passwordEmail" type="email" required autocomplete="username"></label>
+          <label>Пароль<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+          <button class="primary" type="submit">Войти</button>
+          <button id="forgotPassword" class="ghost" type="button">Не помню пароль — войти по ссылке</button>
+          <p id="passwordLoginNote" class="auth-note" role="status"></p>
+        </form>
+      </details>
     </div>
   </section>
 
@@ -34,6 +45,7 @@
 
       <div class="user-menu">
         <span id="userEmail"></span>
+        <button id="accountBtn" class="ghost">Аккаунт</button>
         <button id="logoutBtn" class="ghost">Выйти</button>
       </div>
     </header>
@@ -119,6 +131,22 @@
       </section>
 
     </main>
+
+    <dialog id="accountDialog" aria-labelledby="accountTitle">
+      <div class="account-body">
+        <button id="accountClose" class="dialog-close" aria-label="Закрыть">×</button>
+        <h3 id="accountTitle">Пароль для входа</h3>
+        <p class="auth-copy">Можно задать или сменить пароль. Вход по ссылке останется доступен — создавать пароль необязательно.</p>
+        <form id="setPasswordForm" class="account-form">
+          <label>Email<input id="accountEmail" type="email" autocomplete="username" readonly></label>
+          <label>Новый пароль<input id="newPassword" type="password" required minlength="8" autocomplete="new-password" aria-describedby="passwordHint"></label>
+          <p id="passwordHint" class="add-note">Не меньше 8 символов. Сохрани пароль в менеджере паролей.</p>
+          <label>Повтори пароль<input id="confirmPassword" type="password" required minlength="8" autocomplete="new-password"></label>
+          <button class="primary" type="submit">Сохранить пароль</button>
+          <p id="accountNote" class="auth-note" role="status"></p>
+        </form>
+      </div>
+    </dialog>
 
     <dialog id="detailDialog" aria-labelledby="detailTitle">
       <button class="dialog-close" id="dialogClose" aria-label="Закрыть">×</button>

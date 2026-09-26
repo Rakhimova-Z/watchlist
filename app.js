@@ -64,6 +64,8 @@ function applySession(session){
   if(previous!==state.user?.id){
     state.library=[]; state.selected=null; state.searchItems=[]; state.epoch++;
     $("#detailDialog").close(); $("#confirmDialog").close();
+    $("#accountDialog").close();
+    $("#setPasswordForm").reset(); $("#passwordLoginForm").reset();
     $("#searchResults").innerHTML=""; $("#searchInput").value="";
     $("#searchState").classList.add("hidden"); renderLibrary();
   }
@@ -75,16 +77,71 @@ function applySession(session){
   }
 }
 
-$("#loginForm").addEventListener("submit",async e=>{
+let loginBusy=false;
+async function login(form,note,action,success){
+  if(loginBusy)return;
+  loginBusy=true;
+  const buttons=$$("#loginForm button, #passwordLoginForm button");
+  buttons.forEach(button=>button.disabled=true);
+  note.textContent="Подожди…";
+  try{
+    const {error}=await action();
+    if(error)throw error;
+    note.textContent=success;
+  }catch(error){
+    note.textContent=error.code==="invalid_credentials"?"Не подошли email или пароль. Можно войти по ссылке.":error.message;
+  }finally{
+    loginBusy=false;buttons.forEach(button=>button.disabled=false);
+    if(form.id==="passwordLoginForm")$("#loginPassword").value="";
+  }
+}
+$("#loginForm").addEventListener("submit",e=>{
   e.preventDefault();
   const email=$("#emailInput").value.trim();
-  const note=$("#authNote");
-  note.textContent="Отправляю ссылку…";
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options:{ emailRedirectTo: window.location.origin + window.location.pathname }
-  });
-  note.textContent=error ? error.message : "Ссылка для входа отправлена на почту ✦";
+  login(e.currentTarget,$("#authNote"),()=>supabase.auth.signInWithOtp({email,
+    options:{emailRedirectTo:window.location.origin+window.location.pathname}
+  }),"Ссылка для входа отправлена на почту ✦");
+});
+$("#passwordLoginForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const email=$("#passwordEmail").value.trim(),password=$("#loginPassword").value;
+  login(e.currentTarget,$("#passwordLoginNote"),()=>supabase.auth.signInWithPassword({email,password}),"Вход выполнен");
+});
+$("#forgotPassword").addEventListener("click",()=>{
+  $("#emailInput").value=$("#passwordEmail").value;
+  $("#loginPassword").value="";
+  $(".password-login").open=false;
+  $("#authNote").textContent="Получи ссылку для входа. Затем в «Аккаунт» можно задать новый пароль.";
+  $("#emailInput").focus();
+});
+$("#accountBtn").addEventListener("click",()=>{
+  if(!state.user)return;
+  $("#setPasswordForm").reset();$("#accountEmail").value=state.user.email||"";
+  $("#accountNote").textContent="";$("#accountDialog").showModal();
+});
+let passwordBusy=false;
+$("#accountClose").addEventListener("click",()=>{if(!passwordBusy)$("#accountDialog").close()});
+$("#accountDialog").addEventListener("cancel",e=>{if(passwordBusy)e.preventDefault()});
+$("#accountDialog").addEventListener("close",()=>$("#setPasswordForm").reset());
+$("#setPasswordForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(passwordBusy||!state.user)return;
+  const password=$("#newPassword").value,note=$("#accountNote"),epoch=state.epoch;
+  if(password!==$("#confirmPassword").value){note.textContent="Пароли не совпадают.";return}
+  passwordBusy=true;
+  const controls=$$("#setPasswordForm input, #setPasswordForm button, #accountClose");
+  controls.forEach(el=>el.disabled=true);note.textContent="Сохраняю пароль…";
+  try{
+    const {error}=await supabase.auth.updateUser({password});
+    if(epoch!==state.epoch)return;
+    if(error)throw error;
+    note.textContent="Пароль сохранён. Теперь можно входить с паролем или по ссылке.";
+  }catch(error){
+    if(epoch===state.epoch)note.textContent=error.code==="reauthentication_needed"?"Войди заново по ссылке из почты и повтори сохранение пароля.":error.message;
+  }finally{
+    $("#newPassword").value="";$("#confirmPassword").value="";
+    passwordBusy=false;controls.forEach(el=>el.disabled=false);
+  }
 });
 
 $("#logoutBtn").addEventListener("click",async()=>{
