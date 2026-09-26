@@ -1,4 +1,4 @@
-import { sortLibrary, normalizeGenre, matchesGenres } from "./library-order.mjs";
+import { sortLibrary, normalizeGenre, matchesGenres, matchesYears } from "./library-order.mjs";
 import { durationLabel, matchesDuration } from "./duration.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -22,6 +22,9 @@ const state = {
   rewatch: "all",
   duration: "all",
   genres: [],
+  favorite: false,
+  yearFrom: "",
+  yearTo: "",
   sort: "added-desc",
   query: "",
   selected: null,
@@ -173,7 +176,7 @@ function filtered(){
     const typeOk=state.category==="all"||x.category===state.category;
     const qOk=!q||x.title.toLowerCase().includes(q);
     const rewatchOk=state.rewatch==="all"||(x.rewatch_status||"none")===state.rewatch;
-    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration)&&matchesGenres(x,state.genres);
+    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration)&&matchesGenres(x,state.genres)&&(!state.favorite||x.is_favorite)&&matchesYears(x,state.yearFrom,state.yearTo);
   }),state.sort);
 }
 
@@ -189,6 +192,7 @@ function renderStats(){
 const categoryGroups=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы'],['bl','BL / лакорны']];
 const collapsedGroups=new Set();
 let duplicateId=null;
+const favoritePending=new Set();
 function renderLibrary(){
   $$(".library-group").forEach(group=>{
     if(group.open)collapsedGroups.delete(group.dataset.group);else collapsedGroups.add(group.dataset.group);
@@ -200,9 +204,11 @@ function renderLibrary(){
   $("#libraryEmpty p").textContent=state.library.length?"Попробуй другие фильтры или название.":"Добавь первый тайтл — остальное сайт заполнит сам.";
   $("#libraryEmpty").classList.toggle("hidden",items.length>0);
   const card=x=>`
+    <article class="media-tile">
     <button type="button" class="media-card" data-id="${esc(x.id)}" aria-label="Открыть ${esc(x.title)}">
       <div class="poster-wrap">
         ${x.poster_url?`<img src="${esc(x.poster_url)}" alt="${esc(x.title)}" loading="lazy">`:`<div class="poster-fallback">✦</div>`}
+        ${x.rating?`<span class="rating-badge" aria-label="Оценка ${x.rating} из 10">★ ${x.rating}</span>`:""}
         <span class="badge">${labels[x.status]||x.status}</span>
         ${["planned","rewatching"].includes(x.rewatch_status)?`<span class="rewatch-badge">↻ ${labels[x.rewatch_status]}</span>`:""}
       </div>
@@ -211,7 +217,9 @@ function renderLibrary(){
         <p><span>${x.year||"—"}</span><span>${labels[x.category]||x.category||"—"}</span></p>
         <p class="duration">${durationLabel(x)}</p>
       </div>
-    </button>`;
+    </button>
+    <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
+    </article>`;
   $("#libraryGrid").innerHTML=categoryGroups.map(([category,title])=>{
     const group=items.filter(x=>x.category===category);
     if(!group.length)return "";
@@ -250,6 +258,13 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape")$$(".control-panel[open]").forEach(panel=>{panel.open=false;panel.querySelector('summary').focus()});
 });
+$("#favoriteFilter").addEventListener("change",e=>{state.favorite=e.target.checked;renderLibrary()});
+for(const [id,key] of [["#yearFrom","yearFrom"],["#yearTo","yearTo"]])$(id).addEventListener("input",e=>{
+  if(!e.target.validity.valid)return;
+  state[key]=e.target.value;
+  $("#yearNote").textContent=state.yearFrom&&state.yearTo&&Number(state.yearFrom)>Number(state.yearTo)?"Начальный год больше конечного — измени диапазон.":"Годы выхода включительно. Можно указать только одну границу.";
+  renderLibrary();
+});
 function renderFilterControls(count){
   const genres=[...new Set(state.library.flatMap(x=>x.genres||[]).map(normalizeGenre).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
   const signature=JSON.stringify(genres);
@@ -258,7 +273,7 @@ function renderFilterControls(count){
     $("#genreFilters").innerHTML=genres.length?genres.map(g=>`<label class="genre-option"><input type="checkbox" value="${esc(g)}"><span>${esc(g)}</span></label>`).join(""):"<p class='add-note'>В библиотеке пока нет жанров.</p>";
   }
   $$("#genreFilters input").forEach(el=>el.checked=state.genres.includes(el.value));
-  const active=[state.status,state.category,state.duration,state.rewatch].filter(v=>v!=="all").length+state.genres.length;
+  const active=[state.status,state.category,state.duration,state.rewatch].filter(v=>v!=="all").length+state.genres.length+Number(state.favorite)+Number(!!(state.yearFrom||state.yearTo));
   $("#filterCount").textContent=active;$("#filterCount").classList.toggle("hidden",!active);
   const sortText=$("input[name=librarySort]:checked").nextElementSibling.textContent;
   $("#librarySelection").textContent=`Показано ${count} из ${state.library.length} · ${sortText}${active?` · Фильтров: ${active}`:""}`;
@@ -271,7 +286,8 @@ $("#genreFilters").addEventListener("change",()=>{
   state.genres=$$("#genreFilters input:checked").map(el=>el.value);renderLibrary();
 });
 $("#resetFilters").addEventListener("click",()=>{
-  state.status=state.category=state.duration=state.rewatch="all";state.genres=[];
+  state.status=state.category=state.duration=state.rewatch="all";state.genres=[];state.favorite=false;state.yearFrom=state.yearTo="";
+  $("#favoriteFilter").checked=false;$("#yearFrom").value=$("#yearTo").value="";$("#yearNote").textContent="Годы выхода включительно. Можно указать только одну границу.";
   $$("#statusFilters .segment").forEach(el=>el.classList.toggle("active",el.dataset.status==="all"));
   ["#typeFilter","#durationFilter","#rewatchFilter"].forEach(id=>$(id).value="all");renderLibrary();
 });
@@ -283,7 +299,7 @@ function obviousMatch(items,query){
   const exact=items.filter(x=>[titleOf(x),x.original_title,x.original_name].some(t=>normalizeTitle(t)===normalizeTitle(query)));
   return exact.length===1?exact[0]:null;
 }
-function searchMessage(message){duplicateId=null;$("#existingNotice").classList.add("hidden");$("#searchState").textContent=message;$("#searchState").classList.remove("hidden")}
+function searchMessage(message){$("#searchHint").classList.add("hidden");duplicateId=null;$("#existingNotice").classList.add("hidden");$("#searchState").textContent=message;$("#searchState").classList.remove("hidden")}
 function showExisting(item){
   duplicateId=item.id;
   $("#searchState").classList.add("hidden");
@@ -323,7 +339,8 @@ $("#searchForm").addEventListener("submit",async e=>{
   finally{setSearchBusy(false)}
 });
 function renderSearch(items){
-  searchMessage(items.length?"Выбери нужный тайтл — он сразу попадёт в очередь.":"Ничего не нашлось. Попробуй другое название.");
+  searchMessage(items.length?"Выбери нужный тайтл — он сразу попадёт в очередь.":"Ничего не нашлось.");
+  $("#searchHint").classList.toggle("hidden",items.length>0);
   $("#searchResults").innerHTML=items.map((x,i)=>`
     <button class="result-card" data-index="${i}">
       ${x.poster_path?`<img src="${esc(`https://image.tmdb.org/t/p/w185${x.poster_path}`)}" alt="" loading="lazy">`:'<span class="result-thumb-fallback">✦</span>'}
@@ -385,6 +402,7 @@ function openItem(x){
         <label class="full">Название<input name="title" required maxlength="500" value="${esc(x.title)}"></label>
         <label>Категория<select name="category">${options(["movie","series","anime","drama","cartoon","bl"],x.category)}</select></label>
         <label>Статус<select name="status">${options(["queue","watching","watched","dropped"],x.status)}</select></label>
+        <label class="full favorite-field"><input type="checkbox" name="is_favorite" ${x.is_favorite?"checked":""}> В избранном</label>
         <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
         <p id="rewatchHint" class="add-note full">Отдельная отметка: статус, оценка и дата прошлого просмотра сохранятся.</p>
         <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Уже посмотрела? Можно поставить оценку и дату — или оставить их пустыми.</p>
@@ -434,10 +452,24 @@ function saveItem(e){
   e.preventDefault(); const form=new FormData(e.currentTarget);
   const title=String(form.get("title")).trim();
   if(!title){$("#editMessage").textContent="Название не может быть пустым.";return}
-  mutateItem("update",{title,category:form.get("category"),status:form.get("status"),rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
+  mutateItem("update",{title,category:form.get("category"),status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
 }
 $("#confirmDialog").addEventListener("close",()=>{if($("#confirmDialog").returnValue==="delete")mutateItem("delete")});
+async function toggleFavorite(id){
+  const item=state.library.find(x=>x.id===id),userId=state.user?.id,epoch=state.epoch;
+  if(!item||!userId||favoritePending.has(id))return;
+  favoritePending.add(id);renderLibrary();
+  try{
+    const {data,error}=await supabase.from("watchlist_items").update({is_favorite:!item.is_favorite}).eq("id",id).eq("user_id",userId).select().single();
+    if(epoch!==state.epoch)return;
+    if(error)throw error;
+    state.library=state.library.map(x=>x.id===id?data:x);
+  }catch(error){if(epoch===state.epoch)toast(`Не удалось изменить избранное: ${error.message}`,true)}
+  finally{favoritePending.delete(id);if(epoch===state.epoch)renderLibrary()}
+}
 $("#libraryGrid").addEventListener("click",e=>{
+  const favorite=e.target.closest("[data-favorite]");
+  if(favorite){toggleFavorite(favorite.dataset.favorite);return}
   const card=e.target.closest("[data-id]"); if(!card)return;
   const item=state.library.find(x=>x.id===card.dataset.id);if(item)openItem(item);
 });

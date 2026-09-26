@@ -5,7 +5,7 @@ export function sortLibrary(items,sort='added-desc'){
   const value=x=>{
     if(field==='title')return x.title||null;
     if(field==='duration')return totalMinutes(x);
-    if(field==='added'){const t=Date.parse(x.created_at);return Number.isFinite(t)?t:null}
+    if(field==='added'||field==='watched'){const t=Date.parse(field==='added'?x.created_at:x.watched_at);return Number.isFinite(t)?t:null}
     const n=Number(field==='release'?x.year:x.rating);
     return Number.isFinite(n)&&n>0?n:null;
   };
@@ -19,3 +19,9 @@ export function sortLibrary(items,sort='added-desc'){
 }
 export const normalizeGenre=value=>String(value).trim().toLocaleLowerCase('ru');
 export function matchesGenres(item,genres){return !genres.length||(item.genres||[]).some(g=>genres.includes(normalizeGenre(g)))}
+
+export function matchesYears(item,from,to){
+  if(!from&&!to)return true;
+  const year=Number(item.year);
+  return Number.isInteger(year)&&year>0&&(!from||year>=Number(from))&&(!to||year<=Number(to));
+}

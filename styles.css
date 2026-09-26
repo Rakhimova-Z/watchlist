@@ -176,3 +176,11 @@ button:disabled{cursor:wait;opacity:.5}
 @media(max-width:640px){.library-controls>.mini-search{flex-basis:100%}.control-panel{flex:1}.control-panel>summary{text-align:center}.control-content{top:120px;padding:18px;max-height:60dvh}.filter-fields{grid-template-columns:1fr}.control-content .segmented{flex-wrap:wrap;overflow:visible}}
 
 .filter-done{width:100%;margin-top:24px}
+
+.media-tile{position:relative;min-width:0}.media-tile>.media-card{width:100%}
+.favorite-btn{position:absolute;right:9px;top:9px;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:50%;background:rgba(10,11,14,.88);font-size:24px;color:var(--text)}.favorite-btn[aria-pressed=true]{color:#ff9bbb}
+.rating-badge{position:absolute;right:10px;bottom:10px;padding:7px 9px;border-radius:9px;background:rgba(10,11,14,.9);color:var(--accent);font-size:12px;font-weight:700}
+.poster-wrap:has(.rating-badge) .rewatch-badge{max-width:calc(100% - 82px);font-size:10px}
+.edit-form .favorite-field{display:flex;flex-direction:row;align-items:center;gap:10px}.favorite-field input{width:18px;height:18px;accent-color:var(--accent)}
+.favorite-filter{display:flex;gap:9px;align-items:center;margin-bottom:22px;font-size:14px}
+.year-field{border:0;padding:0;margin:24px 0 0;min-width:0}.year-field legend{font-size:14px}.year-range{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.year-range label{display:grid;gap:8px;font-size:12px;color:var(--muted)}.year-range input{width:100%;min-width:0;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text);font-size:16px}

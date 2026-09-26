@@ -76,6 +76,7 @@
           </form>
           <p class="add-note">Введи название и нажми Enter. Если есть похожие — выберем нужный.</p>
           <div id="searchState" class="search-state hidden" role="status"></div>
+          <p id="searchHint" class="add-note hidden">Попробуй поискать на другом языке — например, по английскому или оригинальному названию.</p>
           <div id="existingNotice" class="existing-notice hidden"></div>
           <div id="searchResults" class="search-results"></div>
         </div>
@@ -85,6 +86,8 @@
             <summary>↕ Сортировка</summary>
             <div class="control-content sort-options"><label class="sort-option"><input type="radio" name="librarySort" value="added-desc" checked><span>Сначала недавно добавленные</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="added-asc" ><span>Сначала давно добавленные</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="watched-desc"><span>Дата просмотра: сначала недавние</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="watched-asc"><span>Дата просмотра: сначала давние</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="release-desc" ><span>Год выхода: сначала новые</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="release-asc" ><span>Год выхода: сначала старые</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="duration-asc" ><span>Общее время: сначала короткие</span></label>
@@ -98,6 +101,7 @@
             <summary>☷ Фильтры <span id="filterCount" class="group-count hidden"></span></summary>
             <div class="control-content">
               <div class="filter-heading"><strong>Фильтры</strong><button type="button" id="resetFilters" class="ghost">Сбросить</button></div>
+              <label class="favorite-filter"><input type="checkbox" id="favoriteFilter"> Только избранное</label>
               <span class="filter-label">Статус</span>
               <div class="segmented" id="statusFilters">
             <button class="segment active" data-status="all">Все</button>
@@ -131,6 +135,7 @@
               <option value="bl">BL / лакорны</option>
             </select></label>
 </div>
+              <fieldset class="year-field"><legend>Год выхода</legend><div class="year-range"><label>От<input id="yearFrom" type="number" min="1" max="9999" step="1" placeholder="Любой" inputmode="numeric"></label><label>До<input id="yearTo" type="number" min="1" max="9999" step="1" placeholder="Любой" inputmode="numeric"></label></div><p id="yearNote" class="add-note" role="status">Годы выхода включительно. Можно указать только одну границу.</p></fieldset>
               <fieldset class="genre-field"><legend>Жанры</legend><p class="add-note">Можно выбрать несколько — подойдёт любой из выбранных.</p><div id="genreFilters" class="genre-options"></div></fieldset>
               <button id="applyFilters" type="button" class="primary filter-done">Показать тайтлы</button>
             </div>
