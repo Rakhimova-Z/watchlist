@@ -342,7 +342,7 @@ function renderLibrary(){
         ${x.poster_url?`<img src="${esc(x.poster_url)}" alt="${esc(x.title)}" loading="lazy">`:`<div class="poster-fallback">✦</div>`}
         ${x.rating?`<span class="rating-badge" aria-label="Оценка ${x.rating} из 10">★ ${x.rating}</span>`:""}
         <span class="badge">${labels[x.status]||x.status}</span>
-        ${["planned","rewatching"].includes(x.rewatch_status)?`<span class="rewatch-badge">↻ ${labels[x.rewatch_status]}</span>`:""}
+        ${x.status==="watched"&&["planned","rewatching"].includes(x.rewatch_status)?`<span class="rewatch-badge">↻ ${labels[x.rewatch_status]}</span>`:""}
       </div>
       <div class="media-meta">
         <h4>${esc(x.title)}</h4>
@@ -547,13 +547,12 @@ function openItem(x){
         <label>Статус<select name="status">${options(["queue","watching","paused","watched","dropped"],x.status)}</select></label>
         ${x.media_type==="tv"?`<fieldset id="droppedProgress" class="full dropped-progress ${["dropped","paused"].includes(x.status)?"":"hidden"}" ${["dropped","paused"].includes(x.status)?"":"disabled"}>
           <legend>Место остановки</legend>
-          <div class="progress-fields"><label>Сезон<input name="dropped_season" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указан" value="${x.dropped_season||""}"></label><label>Серия в сезоне<input name="dropped_episode" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указана" value="${x.dropped_episode||""}"></label></div>
-          <p class="add-note">Необязательно. Если вернёшься к просмотру, отметка сохранится.</p>
+          <div class="progress-fields"><label>Сезон<input name="dropped_season" type="number" min="1" max="${x.seasons||9999}" step="1" inputmode="numeric" placeholder="Не указан" value="${x.dropped_season||""}"></label><label>Серия в сезоне<input name="dropped_episode" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указана" value="${x.dropped_episode||""}"></label></div>
+          <p id="progressLimits" class="add-note">Проверяю количество серий…</p>
         </fieldset>`:""}
         ${x.media_type==="movie"?`<label id="movieProgress" class="full ${["paused","dropped"].includes(x.status)?"":"hidden"}">Место остановки<input name="paused_timestamp" placeholder="01:25:30" value="${x.paused_seconds==null?'':formatTimestamp(x.paused_seconds)}"><span class="add-note">Часы:минуты:секунды. Необязательно.</span></label>`:""}
-        <label class="full favorite-field"><input type="checkbox" name="is_favorite" ${x.is_favorite?"checked":""}> В избранном</label>
-        <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
-        <p id="rewatchHint" class="add-note full">Завершение пересмотра добавит новый просмотр в статистику, сохранив предыдущий.</p>
+        <label id="rewatchField" class="full ${x.status==="watched"?"":"hidden"}">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
+        <p id="rewatchHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Завершение пересмотра добавит новый просмотр в статистику, сохранив предыдущий.</p>
         <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Просмотр завершён? Можно поставить оценку и дату — или оставить их пустыми.</p>
         <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
@@ -564,18 +563,31 @@ function openItem(x){
         <p id="editMessage" class="form-message full" role="status"></p>
         <div class="form-actions full"><button type="button" id="deleteBtn" class="danger">Удалить</button><button class="primary" type="submit">Сохранить</button></div>
       </form>
-      ${x.rewatch_status==="rewatching"?'<button id="finishRewatch" type="button" class="primary">Завершить пересмотр</button>':""}
+      ${x.status==="watched"&&x.rewatch_status==="rewatching"?'<button id="finishRewatch" type="button" class="primary">Завершить пересмотр</button>':""}
       <section class="title-diary"><h4>История просмотров</h4><p class="add-note">История статусов и просмотров сохраняется автоматически. Здесь можно дополнить её заметками.</p><button id="openTitleDiary" type="button" class="ghost">Открыть дневник тайтла</button></section>
     </div></div>`;
   $("#finishRewatch")?.addEventListener("click",()=>{ $("#editForm [name=status]").value="watched";$("#editForm [name=rewatch_status]").value="none";$("#editForm").requestSubmit() });
   $("#openTitleDiary").addEventListener("click",()=>diary.open(x.id));
   $("#editForm").addEventListener("submit",saveItem);
   $("#editForm [name=status]").addEventListener("change",e=>{
+    $('#rewatchField').classList.toggle('hidden',e.target.value!=='watched');$('#rewatchHint').classList.toggle('hidden',e.target.value!=='watched');$('#finishRewatch')?.classList.toggle('hidden',e.target.value!=='watched');
     $("#watchedHint").classList.toggle("hidden",e.target.value!=="watched");
     $("#movieProgress")?.classList.toggle("hidden",!["paused","dropped"].includes(e.target.value));
     const progress=$("#droppedProgress");
     if(progress){progress.classList.toggle("hidden",!["dropped","paused"].includes(e.target.value));progress.disabled=!["dropped","paused"].includes(e.target.value)}
   });
+  const updateBounds=()=>{
+    const season=$('#editForm [name=dropped_season]'),episode=$('#editForm [name=dropped_episode]');if(!season)return;
+    if(x._seasonEpisodes?.length)season.max=String(Math.max(...x._seasonEpisodes.map(s=>s.season)));
+    const n=Number(season.value),info=x._seasonEpisodes?.find(s=>s.season===n);
+    episode.max=String(info?.episodes||x.episodes||9999);
+    $('#progressLimits').textContent=info?`В сезоне ${n}: ${info.episodes} серий.`:x._seasonEpisodes?'Укажи сезон, чтобы проверить серию.':'Нет точных данных о сериях. Повтори открытие карточки; пока можно сохранить без места остановки.';
+  };
+  $('#editForm [name=dropped_season]')?.addEventListener('input',updateBounds);
+  if(x.media_type==='tv'){
+    if(x._seasonEpisodes)updateBounds();
+    else {const epoch=state.epoch;tmdb({action:'details',mediaType:'tv',id:Number(x.tmdb_id)}).then(info=>{if(epoch!==state.epoch)return;x._seasonEpisodes=info.season_episodes||[];if(state.selected===x)updateBounds()}).catch(()=>{if(state.selected===x)updateBounds()})}
+  }
   $("#todayBtn").addEventListener("click",()=>{
     const now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
     $("#editForm [name=watched_at]").value=now.toISOString().slice(0,10);
@@ -619,15 +631,20 @@ function saveItem(e){
       if(progress[key]!==null&&(!Number.isInteger(progress[key])||progress[key]<1||progress[key]>9999)){$("#editMessage").textContent="Укажи целые номера сезона и серии от 1 до 9999.";return}
     }
   }
+  if(state.selected?.media_type==='tv'&&['paused','dropped'].includes(form.get('status'))&&(progress.dropped_season||progress.dropped_episode)){
+    const info=state.selected._seasonEpisodes?.find(s=>s.season===progress.dropped_season);
+    if(!info|| (progress.dropped_episode!=null&&(!Number.isInteger(info.episodes)||progress.dropped_episode>info.episodes))){$('#editMessage').textContent='Укажи существующий сезон и серию в его пределах. Если данные ещё загружаются, подожди немного.';return}
+  }
   if(state.selected?.media_type==="movie"&&["paused","dropped"].includes(form.get("status"))){
     const value=String(form.get("paused_timestamp")||"").trim();
     if(value&&!/^\d{1,3}:[0-5]\d:[0-5]\d$/.test(value)){$('#editMessage').textContent='Укажи время в формате 01:25:30.';return}
     progress.paused_seconds=value?value.split(':').reduce((total,n)=>total*60+Number(n),0):null;
+    if(value&&(!state.selected.runtime||progress.paused_seconds>state.selected.runtime*60)){$('#editMessage').textContent=state.selected.runtime?`Место остановки не может быть позже ${formatTimestamp(state.selected.runtime*60)}.`:'Длительность фильма неизвестна — пока сохрани без времени остановки.';return}
   }
   const tags=parseTags(form.get("tags"));
   if(tags.length>30||tags.some(t=>t.length>60)){$("#editMessage").textContent="Можно сохранить до 30 тегов, каждый до 60 символов.";return}
   const type=form.get("category"),isBase=baseOrder.includes(type);
-  mutateItem("update",{...progress,title,category:isBase?type:state.selected.category,custom_type:isBase?null:type,list_ids:form.getAll("list_ids"),tags,status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
+  mutateItem("update",{...progress,title,category:isBase?type:state.selected.category,custom_type:isBase?null:type,list_ids:form.getAll("list_ids"),tags,status:form.get("status"),rewatch_status:form.get("status")==="watched"?form.get("rewatch_status"):(state.selected.rewatch_status||"none"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
 }
 $("#confirmDialog").addEventListener("close",()=>{if($("#confirmDialog").returnValue==="delete")mutateItem("delete")});
 async function toggleFavorite(id){

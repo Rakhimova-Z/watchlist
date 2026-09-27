@@ -85,6 +85,7 @@ Deno.serve(async req=>{
         genres:(raw.genres||[]).map((g:any)=>genreMap[g.name]||g.name.toLowerCase()),
         countries,
         seasons:mediaType==="tv"?raw.number_of_seasons:null,
+        season_episodes:mediaType==="tv"?(raw.seasons||[]).filter((s:any)=>s.season_number>0).map((s:any)=>({season:s.season_number,episodes:s.episode_count})):null,
         episodes:mediaType==="tv"?raw.number_of_episodes:null,
         runtime:mediaType==="movie"?raw.runtime:(raw.episode_run_time||[])[0]||null,
         suggested_category:inferCategory(mediaType,raw)
