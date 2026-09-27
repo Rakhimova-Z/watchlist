@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {baseOrder,typeCatalog,orderedTypes,itemType,parseTags,diaryStats} from '../personal-library.mjs';
+const profile={custom_types:{custom_concert:'Концерты'},hidden_types:['bl'],section_order:['custom_concert','series','series','bad',...baseOrder]};
+assert.equal(orderedTypes(profile)[0][0],'custom_concert');
+assert.equal(orderedTypes(profile).filter(([key])=>key==='series').length,1);
+assert.equal(typeCatalog(profile).some(([key])=>key==='bl'),false);
+assert.equal(itemType({category:'bl'},profile),'uncategorized');
+assert.equal(itemType({category:'movie',custom_type:'deleted'},profile),'uncategorized');
+assert.equal(itemType({category:'movie',custom_type:'custom_concert'},profile),'custom_concert');
+assert.deepEqual(parseTags(' Уютное, уютное, С друзьями, '),['уютное','с друзьями']);
+const entries=[{item_id:'a',watched_on:'2025-01-01',is_rewatch:false,rating:8},{item_id:'a',watched_on:'2026-02-01',is_rewatch:true,rating:10},{item_id:'b',watched_on:'2026-02-02',is_rewatch:false,rating:null}];
+const items=[{id:'a',genres:['драма','драма','комедия']},{id:'b',genres:[]}];
+let stats=diaryStats(entries,items,'2026');
+assert.equal(stats.total,2);assert.equal(stats.rewatches,1);assert.equal(stats.unique,2);assert.equal(stats.months.length,12);assert.deepEqual(stats.months[1],['2026-02',2]);assert.equal(stats.ratings[9],1);assert.equal(stats.ratings.reduce((a,b)=>a+b,0),1);assert.deepEqual(stats.genres,[['драма',1],['комедия',1]]);
+stats=diaryStats(entries,items,'');assert.equal(stats.total,3);assert.equal(stats.genres[0][1],2);
+assert.equal(diaryStats([],items,'2026').total,0);
+assert.equal(diaryStats(entries.slice(0,1),items,'2026').total,0);
+console.log('PASS: custom/hidden types, orphan fallback, tag normalization, monthly counts, repeat counts, ratings and multi-genre statistics');

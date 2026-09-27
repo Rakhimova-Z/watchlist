@@ -1,0 +1,20 @@
+
+ export function createClient(){
+  let rows=[];let diaryRows=[];let profile=null;window.calls=[];window.failSave=false;
+  window.authCalls=[];
+  return {auth:{setSession:async()=>{window.authChange('SIGNED_IN',{user:{id:'user-1',email:'test@example.com'}});return {}},
+   updateUser:async({password})=>{window.authCalls.push('update');if(window.rejectPassword)return {error:{message:'Пароль не принят'}};return {data:{user:{id:'user-1'}}}},
+   signInWithOtp:async({email})=>{window.authCalls.push('magic');return {}},
+   signInWithPassword:async({email,password})=>{window.authCalls.push('password');if(password!=='test-password-123')return {error:{code:'invalid_credentials',message:'Invalid'}};window.authChange('SIGNED_IN',{user:{id:'user-1',email}});return {}},
+   getSession:async()=>({data:{session:{user:{id:'user-1',email:'test@example.com'}}}}),onAuthStateChange:cb=>{window.authChange=cb},signOut:async()=>{window.authChange('SIGNED_OUT',null);return {}}},
+   functions:{invoke:async(_, {body:b})=>_==='username-login'?{data:b.username==='zulf'&&b.password==='test-password-123'?{access_token:'test',refresh_token:'test'}:{error:'Не подошли имя пользователя или пароль. Можно войти по ссылке.'}}:({data:b.action==='search'?{results:b.query==='нет'?[]:b.query==='ошибка'?null:b.query==='Дюна'?[{id:1,media_type:'movie',title:'Дюна',release_date:'2021'},{id:2,media_type:'movie',title:'Дюна',release_date:'1984'}]:[{id:3,media_type:'tv',name:b.query,first_air_date:'2025'}]}:{id:b.id,media_type:b.mediaType,title:b.id===3?'Мисс Инкогнито':'Дюна',year:'2025',overview:'Описание тайтла',genres:['драма'],countries:['Корея'],seasons:1,episodes:12,runtime:60,suggested_category:b.mediaType==='movie'?'movie':'drama'},error:b.query==='ошибка'?{message:'Ошибка сети'}:null})},
+   from(name){if(name==='watchlist_entries'){
+ let kind='read',payload,filters={};const q={select(){return q},eq(k,v){filters[k]=v;return q},order(){return q},async range(from,to){window.calls.push({kind,filters});return {data:diaryRows.filter(x=>x.user_id===filters.user_id).sort((a,b)=>b.watched_on.localeCompare(a.watched_on)).slice(from,to+1)}},insert(v){kind='insert';payload=v;return q},update(v){kind='update';payload=v;return q},delete(){kind='delete';return q},async single(){window.calls.push({kind,payload,filters});if(window.failDiary)return {error:{message:'Ошибка дневника'}};
+ if(kind==='insert'){if(diaryRows.some(x=>x.id===payload.id))return {error:{code:'23505'}};const row={...payload};diaryRows.push(row);return {data:row}}
+ const row=diaryRows.find(x=>x.id===filters.id&&x.user_id===filters.user_id);if(!row)return {error:{message:'Not found'}};if(kind==='update')Object.assign(row,payload);if(kind==='delete')diaryRows=diaryRows.filter(x=>x!==row);return {data:row};}};return q;
+ }if(name==='watchlist_profiles'){let payload;const q={select(){return q},eq(key,value){if(key!=='user_id'||value!=='user-1')throw new Error('Profile ownership');return q},async maybeSingle(){return {data:profile}},upsert(value){if(value.user_id!=='user-1')throw new Error('Profile ownership');payload=value;return q},async single(){if(payload.username==='taken')return {error:{code:'23505'}};profile={...payload};return {data:profile}}};return q;}let kind='read',payload,filters={}; const q={select(){return q},eq(k,v){filters[k]=v;return q},order(){window.calls.push({kind,filters});return Promise.resolve({data:rows.slice()})},insert(v){kind='insert';payload=v;return q},update(v){kind='update';payload=v;return q},delete(){kind='delete';return q},async single(){window.calls.push({kind,payload,filters});if(window.failSave&&kind==='update')return {error:{message:'Сбой сохранения'}};
+    if(kind==='insert'){const row={...payload,id:'row-'+payload.tmdb_id};rows.unshift(row);return {data:row}}
+    const row=rows.find(x=>x.id===filters.id&&x.user_id===filters.user_id);if(!row)return {error:{message:'Not found'}};
+    if(kind==='update')Object.assign(row,payload);if(kind==='delete')rows=rows.filter(x=>x!==row);return {data:row};}};return q;}
+  };
+ }

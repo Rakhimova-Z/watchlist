@@ -13,22 +13,7 @@ const assert=require('node:assert/strict');
   route.fulfill({body:fs.readFileSync(path.join(root,name)),contentType:(name.endsWith('.js')||name.endsWith('.mjs'))?'text/javascript':name.endsWith('.css')?'text/css':'text/html'});
  });
  await page.route('https://fonts.googleapis.com/**',r=>r.fulfill({body:''}));
- await page.route('https://esm.sh/**',r=>r.fulfill({contentType:'text/javascript',body:`
- export function createClient(){
-  let rows=[];let profile=null;window.calls=[];window.failSave=false;
-  window.authCalls=[];
-  return {auth:{setSession:async()=>{window.authChange('SIGNED_IN',{user:{id:'user-1',email:'test@example.com'}});return {}},
-   updateUser:async({password})=>{window.authCalls.push('update');if(window.rejectPassword)return {error:{message:'Пароль не принят'}};return {data:{user:{id:'user-1'}}}},
-   signInWithOtp:async({email})=>{window.authCalls.push('magic');return {}},
-   signInWithPassword:async({email,password})=>{window.authCalls.push('password');if(password!=='test-password-123')return {error:{code:'invalid_credentials',message:'Invalid'}};window.authChange('SIGNED_IN',{user:{id:'user-1',email}});return {}},
-   getSession:async()=>({data:{session:{user:{id:'user-1',email:'test@example.com'}}}}),onAuthStateChange:cb=>{window.authChange=cb},signOut:async()=>{window.authChange('SIGNED_OUT',null);return {}}},
-   functions:{invoke:async(_, {body:b})=>_==='username-login'?{data:b.username==='zulf'&&b.password==='test-password-123'?{access_token:'test',refresh_token:'test'}:{error:'Не подошли имя пользователя или пароль. Можно войти по ссылке.'}}:({data:b.action==='search'?{results:b.query==='нет'?[]:b.query==='ошибка'?null:b.query==='Дюна'?[{id:1,media_type:'movie',title:'Дюна',release_date:'2021'},{id:2,media_type:'movie',title:'Дюна',release_date:'1984'}]:[{id:3,media_type:'tv',name:b.query,first_air_date:'2025'}]}:{id:b.id,media_type:b.mediaType,title:b.id===3?'Мисс Инкогнито':'Дюна',year:'2025',overview:'Описание тайтла',genres:['драма'],countries:['Корея'],seasons:1,episodes:12,runtime:60,suggested_category:b.mediaType==='movie'?'movie':'drama'},error:b.query==='ошибка'?{message:'Ошибка сети'}:null})},
-   from(name){if(name==='watchlist_profiles'){let payload;const q={select(){return q},eq(key,value){if(key!=='user_id'||value!=='user-1')throw new Error('Profile ownership');return q},async maybeSingle(){return {data:profile}},upsert(value){if(value.user_id!=='user-1')throw new Error('Profile ownership');payload=value;return q},async single(){if(payload.username==='taken')return {error:{code:'23505'}};profile={...payload};return {data:profile}}};return q;}let kind='read',payload,filters={}; const q={select(){return q},eq(k,v){filters[k]=v;return q},order(){window.calls.push({kind,filters});return Promise.resolve({data:rows.slice()})},insert(v){kind='insert';payload=v;return q},update(v){kind='update';payload=v;return q},delete(){kind='delete';return q},async single(){window.calls.push({kind,payload,filters});if(window.failSave&&kind==='update')return {error:{message:'Сбой сохранения'}};
-    if(kind==='insert'){const row={...payload,id:'row-'+payload.tmdb_id};rows.unshift(row);return {data:row}}
-    const row=rows.find(x=>x.id===filters.id&&x.user_id===filters.user_id);if(!row)return {error:{message:'Not found'}};
-    if(kind==='update')Object.assign(row,payload);if(kind==='delete')rows=rows.filter(x=>x!==row);return {data:row};}};return q;}
-  };
- }` }));
+ await page.route('https://esm.sh/**',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(__dirname,'mock-supabase.mjs'),'utf8')}));
  await page.goto('https://watchlist.test/');
  await page.locator('#app').waitFor({state:'visible'});
  await page.locator('#accountBtn').click();
@@ -158,7 +143,23 @@ const assert=require('node:assert/strict');
  await page.locator('.media-card[data-id="row-1"]').click();await page.locator('[name=status]').selectOption('dropped');assert.equal(await page.locator('#droppedProgress').count(),0);await page.locator('#dialogClose').click();
  assert.equal(await page.locator('.hero h2').textContent(),'Моя медиатека');assert.equal(await page.locator('.hero-copy').count(),0);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'/tmp/watchlist-compact-header.png'});
+ await page.locator('#settingsBtn').click();await page.locator('#newTypeName').fill('Концерты <live>');await page.locator('#newTypeForm button').click();await page.locator('#typeManager .manager-row').filter({hasText:'Концерты <live>'}).waitFor();
+ await page.locator('#newListName').fill('На вечер');await page.locator('#newListForm button').click();await page.locator('#listManager .manager-row').filter({hasText:'На вечер'}).waitFor();await page.locator('#settingsClose').click();
+ await page.locator('.media-card[data-id="row-1"]').click();await page.locator('#editForm [name=category]').selectOption({label:'Концерты <live>'});await page.locator('#editForm [name=list_ids]').check();await page.locator('#editForm [name=tags]').fill('Уютное, с друзьями, уютное');await page.locator('#editForm [type=submit]').click();await page.locator('#detailDialog').waitFor({state:'hidden'});
+ assert.ok((await page.locator('.library-group summary').allTextContents()).some(t=>t.includes('Концерты <live>')));
+ await openFilters();await page.locator('#listFilter').selectOption({label:'На вечер'});await page.locator('#tagFilters input[value="уютное"]').check();await page.locator('#applyFilters').click();assert.equal(await page.locator('.media-card').count(),1);
+ await openFilters();await page.locator('#resetFilters').click();await page.locator('#applyFilters').click();
+ await page.locator('.media-card[data-id="row-1"]').click();const cardDate=await page.locator('#editForm [name=watched_at]').inputValue();await page.locator('#openTitleDiary').click();await page.waitForFunction(()=>!document.querySelector('#diarySave').disabled);
+ await page.locator('#diaryDate').fill('2026-01-10');await page.locator('#diaryRating').selectOption('8');await page.locator('#diaryNotes').fill('Первый просмотр');await page.locator('#diarySave').click();await page.locator('.diary-entry').filter({hasText:'Первый просмотр'}).waitFor();
+ await page.locator('#diaryDate').fill('2026-02-10');await page.locator('#diaryRating').selectOption('10');await page.locator('#diaryRewatch').check();await page.locator('#diaryNotes').fill('Пересмотр с друзьями');await page.locator('#diarySave').click();await page.locator('.diary-entry').filter({hasText:'Пересмотр с друзьями'}).waitFor();assert.equal(await page.locator('.diary-entry').count(),2);
+ await page.locator('.diary-entry').first().locator('[data-edit-entry]').click();await page.locator('#diaryNotes').fill('Новая заметка');await page.locator('#diarySave').click();await page.locator('.diary-entry').filter({hasText:'Новая заметка'}).waitFor();assert.equal(await page.locator('.diary-entry').count(),2);
+ await page.locator('.diary-entry').last().locator('[data-delete-entry]').click();await page.locator('#actionConfirm [value=confirm]').click();await page.waitForFunction(()=>document.querySelectorAll('.diary-entry').length===1);
+ await page.evaluate(()=>window.failDiary=true);await page.locator('#diaryNotes').fill('Не терять заметку');await page.locator('#diarySave').click();await page.locator('#diaryNote').filter({hasText:'Ошибка дневника'}).waitFor();assert.equal(await page.locator('#diaryNotes').inputValue(),'Не терять заметку');await page.evaluate(()=>window.failDiary=false);
+ await page.locator('#diaryClose').click();assert.equal(await page.locator('#editForm [name=watched_at]').inputValue(),cardDate);await page.locator('#dialogClose').click();
+ await page.locator('#statisticsBtn').click();await page.locator('.diary-totals').waitFor();assert.deepEqual(await page.locator('.diary-totals strong').allTextContents(),['1','1','1']);assert.ok((await page.locator('#diaryStatistics').textContent()).includes('драма'));await page.screenshot({path:'/tmp/watchlist-diary-statistics.png'});await page.locator('#statisticsClose').click();
+ await page.locator('#settingsBtn').click();await page.locator('#typeManager .manager-row').filter({hasText:'Концерты <live>'}).locator('button').click();await page.locator('#actionConfirm [value=confirm]').click();await page.locator('#typeManager .manager-row').filter({hasText:'Концерты <live>'}).waitFor({state:'hidden'});
+ await page.locator('#listManager .manager-row').filter({hasText:'На вечер'}).locator('button').click();await page.locator('#actionConfirm [value=confirm]').click();await page.locator('#listManager .manager-row').filter({hasText:'На вечер'}).waitFor({state:'hidden'});await page.locator('#settingsClose').click();assert.equal(await page.locator('.media-card').count(),2);assert.ok((await page.locator('.library-group summary').allTextContents()).some(t=>t.includes('Без типа')));
  assert.deepEqual(errors,[]);
- console.log('PASS: optional password setup/login/errors/magic fallback, local duration/filter, rewatch flags/filter/clear preserve status/rating/date, quick add, duplicate, ambiguity, edit, optional fields, errors, delete cancel/confirm, user scoping, logout, desktop/mobile layout, no JS errors');
+ console.log('PASS: custom types with HTML characters, lists/tags/filtering, diary CRUD/errors, repeat statistics, optional password setup/login/errors/magic fallback, local duration/filter, rewatch flags/filter/clear preserve status/rating/date, quick add, duplicate, ambiguity, edit, optional fields, errors, delete cancel/confirm, user scoping, logout, desktop/mobile layout, no JS errors');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

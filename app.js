@@ -1,3 +1,5 @@
+import { baseTypes, baseOrder, typeCatalog, orderedTypes, itemType, parseTags } from "./personal-library.mjs";
+import { setupDiary } from "./diary-ui.mjs";
 import { sortLibrary, normalizeGenre, matchesGenres, matchesYears } from "./library-order.mjs";
 import { durationLabel, matchesDuration, totalMinutes } from "./duration.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,6 +26,8 @@ const state = {
   rewatch: "all",
   duration: "all",
   genres: [],
+  list: "all",
+  tags: [],
   favorite: false,
   yearFrom: "",
   yearTo: "",
@@ -71,6 +75,7 @@ function applySession(session){
   const previous=state.user?.id;
   state.user=session?.user||null;
   if(previous!==state.user?.id){
+    diary.reset();state.list="all";state.tags=[];
     state.profile=null;state.profileLoaded=false;
     $("#settingsDialog").close();
     collapsedGroups.clear();duplicateId=null;
@@ -182,10 +187,10 @@ function filtered(){
   const q=state.query.trim().toLowerCase();
   return sortLibrary(state.library.filter(x=>{
     const statusOk=state.status==="all"||x.status===state.status;
-    const typeOk=state.category==="all"||x.category===state.category;
+    const typeOk=state.category==="all"||itemType(x,state.profile)===state.category;
     const qOk=!q||x.title.toLowerCase().includes(q);
     const rewatchOk=state.rewatch==="all"||(x.rewatch_status||"none")===state.rewatch;
-    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration)&&matchesGenres(x,state.genres)&&(!state.favorite||x.is_favorite)&&matchesYears(x,state.yearFrom,state.yearTo);
+    return statusOk&&typeOk&&qOk&&rewatchOk&&matchesDuration(x,state.duration)&&matchesGenres(x,state.genres)&&(!state.favorite||x.is_favorite)&&matchesYears(x,state.yearFrom,state.yearTo)&&(state.list==="all"||(x.list_ids||[]).includes(state.list))&&(!state.tags.length||(x.tags||[]).some(tag=>state.tags.includes(tag)));
   }),state.sort);
 }
 
@@ -198,10 +203,9 @@ function renderStats(){
     <span class="stat"><strong>${count("watched")}</strong> посмотрела</span>`;
 }
 
-const categoryGroups=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы'],['bl','BL / лакорны']];
-const defaultOrder=categoryGroups.map(([key])=>key);
-function validOrder(order){return Array.isArray(order)&&order.length===6&&new Set(order).size===6&&order.every(key=>defaultOrder.includes(key))}
-function orderedGroups(){const order=validOrder(state.profile?.section_order)?state.profile.section_order:defaultOrder;return order.map(key=>categoryGroups.find(([value])=>value===key))}
+const categoryGroups=baseTypes;
+const defaultOrder=baseOrder;
+function orderedGroups(){return orderedTypes(state.profile)}
 let profileBusy=false,orderDraft=[];
 async function passwordSignIn(identifier,password){
   if(identifier.includes('@'))return supabase.auth.signInWithPassword({email:identifier,password});
@@ -228,7 +232,7 @@ async function loadProfile(){
 async function saveProfile(changes,note){
   if(profileBusy||!state.user||!state.profileLoaded)return false;
   const epoch=state.epoch;profileBusy=true;note.textContent='Сохраняю…';
-  const controls=$$('#usernameForm input, #usernameForm button, #sectionOrder button, #saveOrder, #resetOrder, #settingsClose');
+  const controls=$$('#usernameForm input, #usernameForm button, #settingsDialog input, #settingsDialog button');
   controls.forEach(el=>el.disabled=true);
   try{
     const {data,error}=await supabase.from('watchlist_profiles').upsert({...state.profile,...changes,user_id:state.user.id},{onConflict:'user_id'}).select().single();
@@ -241,13 +245,13 @@ async function saveProfile(changes,note){
 $('#usernameForm').addEventListener('submit',e=>{e.preventDefault();saveProfile({username:$('#usernameInput').value.trim().toLowerCase()||null},$('#usernameNote'))});
 function renderOrder(){
   $('#sectionOrder').innerHTML=orderDraft.map((key,index)=>{
-    const title=categoryGroups.find(([value])=>value===key)[1];
+    const title=typeCatalog(state.profile).find(([value])=>value===key)?.[1]||key;
     return `<li><span>${esc(title)}</span><button class="ghost" data-move="-1" data-index="${index}" aria-label="${esc(title)} выше" ${index===0?'disabled':''}>↑</button><button class="ghost" data-move="1" data-index="${index}" aria-label="${esc(title)} ниже" ${index===orderDraft.length-1?'disabled':''}>↓</button></li>`;
   }).join('');
 }
 $('#settingsBtn').addEventListener('click',()=>{
   if(!state.profileLoaded){toast('Настройки ещё не загружены. Обнови страницу, если ожидание затянулось.',true);return}
-  orderDraft=[...state.profile.section_order];renderOrder();$('#settingsNote').textContent='';$('#settingsDialog').showModal();
+  orderDraft=orderedGroups().map(([key])=>key).filter(key=>key!=="uncategorized");renderOrder();renderOrganization();$('#settingsNote').textContent='';$('#settingsDialog').showModal();
 });
 $('#sectionOrder').addEventListener('click',e=>{
   const button=e.target.closest('[data-move]');if(!button||profileBusy)return;
@@ -255,10 +259,65 @@ $('#sectionOrder').addEventListener('click',e=>{
   [orderDraft[index],orderDraft[next]]=[orderDraft[next],orderDraft[index]];renderOrder();
   $(`#sectionOrder [data-index="${next}"][data-move="${button.dataset.move}"]`)?.focus();
 });
-$('#resetOrder').addEventListener('click',()=>{orderDraft=[...defaultOrder];renderOrder()});
+$('#resetOrder').addEventListener('click',()=>{orderDraft=typeCatalog(state.profile).map(([key])=>key);renderOrder()});
 $('#saveOrder').addEventListener('click',()=>saveProfile({section_order:[...orderDraft]},$('#settingsNote')));
 $('#settingsClose').addEventListener('click',()=>{if(!profileBusy)$('#settingsDialog').close()});
 $('#settingsDialog').addEventListener('cancel',e=>{if(profileBusy)e.preventDefault()});
+function ask(message){
+  return new Promise(resolve=>{
+    const dialog=$('#actionConfirm');$('#actionConfirmText').textContent=message;dialog.returnValue='cancel';
+    dialog.addEventListener('close',()=>resolve(dialog.returnValue==='confirm'),{once:true});dialog.showModal();
+  });
+}
+const diary=setupDiary({supabase,state,$,$$,esc,ask});
+function typeOptions(value){return orderedGroups().map(([key,name])=>`<option value="${esc(key)}" ${key===value?'selected':''}>${esc(name)}</option>`).join('')}
+function renderPersonalFilters(){
+  const typeValue=orderedGroups().some(([key])=>key===state.category)?state.category:'all';state.category=typeValue;
+  const typeHTML='<option value="all">Все типы</option>'+typeOptions(typeValue);
+  if($('#typeFilter').innerHTML!==typeHTML)$('#typeFilter').innerHTML=typeHTML;
+  $('#typeFilter').value=typeValue;
+  const lists=Object.entries(state.profile?.custom_lists||{});
+  if(state.list!=='all'&&!lists.some(([key])=>key===state.list))state.list='all';
+  $('#listFilter').innerHTML='<option value="all">Все списки</option>'+lists.map(([key,name])=>`<option value="${esc(key)}">${esc(name)}</option>`).join('');$('#listFilter').value=state.list;
+  const tags=[...new Set(state.library.flatMap(x=>x.tags||[]))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const signature=JSON.stringify(tags);
+  if($('#tagFilters').dataset.signature!==signature){$('#tagFilters').dataset.signature=signature;$('#tagFilters').innerHTML=tags.map(tag=>`<label class="genre-option"><input type="checkbox" value="${esc(tag)}"><span>${esc(tag)}</span></label>`).join('')||'<p class="add-note">Добавь теги в карточках тайтлов.</p>'}
+  $$('#tagFilters input').forEach(el=>el.checked=state.tags.includes(el.value));
+}
+$('#listFilter').addEventListener('change',e=>{state.list=e.target.value;renderLibrary()});
+$('#tagFilters').addEventListener('change',()=>{state.tags=$$('#tagFilters input:checked').map(el=>el.value);renderLibrary()});
+function renderOrganization(){
+  $('#typeManager').innerHTML=typeCatalog(state.profile).map(([id,name])=>`<div class="manager-row"><span>${esc(name)}</span><button type="button" class="ghost" data-remove-type="${esc(id)}">Убрать</button></div>`).join('')+baseTypes.filter(([id])=>(state.profile?.hidden_types||[]).includes(id)).map(([id,name])=>`<button type="button" class="ghost restore-type" data-restore-type="${id}">Вернуть «${esc(name)}»</button>`).join('');
+  $('#listManager').innerHTML=Object.entries(state.profile?.custom_lists||{}).map(([id,name])=>`<div class="manager-row"><span>${esc(name)}</span><button type="button" class="ghost" data-remove-list="${esc(id)}">Удалить</button></div>`).join('')||'<p class="add-note">Списков пока нет.</p>';
+}
+async function organize(changes){
+  const saved=await saveProfile(changes,$('#organizationNote'));
+  if(saved){orderDraft=orderedGroups().map(([key])=>key).filter(key=>key!=='uncategorized');renderOrder();renderOrganization()}
+  return saved;
+}
+for(const [form,input,field] of [['#newTypeForm','#newTypeName','custom_types'],['#newListForm','#newListName','custom_lists']])$(form).addEventListener('submit',async e=>{
+  e.preventDefault();if(profileBusy)return;
+  const name=$(input).value.trim(),catalog=field==='custom_types'?typeCatalog(state.profile):Object.entries(state.profile?.custom_lists||{});
+  if(!name)return;
+  if(catalog.some(([,value])=>value.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))){$('#organizationNote').textContent='Такое название уже есть.';return}
+  if(catalog.length>=100){$('#organizationNote').textContent='Можно создать до 100 типов или списков.';return}
+  const id='custom_'+crypto.randomUUID(),changes={[field]:{...(state.profile?.[field]||{}),[id]:name}};
+  if(field==='custom_types')changes.section_order=[...orderedGroups().map(([key])=>key).filter(key=>key!=='uncategorized'),id];
+  if(await organize(changes))$(input).value='';
+});
+$('#typeManager').addEventListener('click',async e=>{
+  const remove=e.target.closest('[data-remove-type]'),restore=e.target.closest('[data-restore-type]');if(profileBusy||(!remove&&!restore))return;
+  if(restore){await organize({hidden_types:(state.profile.hidden_types||[]).filter(id=>id!==restore.dataset.restoreType)});return}
+  const id=remove.dataset.removeType,epoch=state.epoch;
+  if(!await ask('Убрать этот тип? Тайтлы останутся в библиотеке в разделе «Без типа».')||epoch!==state.epoch)return;
+  if(baseOrder.includes(id))await organize({hidden_types:[...new Set([...(state.profile.hidden_types||[]),id])]});
+  else {const types={...state.profile.custom_types};delete types[id];await organize({custom_types:types,section_order:(state.profile.section_order||[]).filter(key=>key!==id)})}
+});
+$('#listManager').addEventListener('click',async e=>{
+  const button=e.target.closest('[data-remove-list]');if(!button||profileBusy)return;const epoch=state.epoch;
+  if(!await ask('Удалить список? Тайтлы и записи дневника останутся.')||epoch!==state.epoch)return;
+  const lists={...state.profile.custom_lists};delete lists[button.dataset.removeList];await organize({custom_lists:lists});
+});
 const collapsedGroups=new Set();
 let duplicateId=null;
 const favoritePending=new Set();
@@ -266,6 +325,7 @@ function renderLibrary(){
   $$(".library-group").forEach(group=>{
     if(group.open)collapsedGroups.delete(group.dataset.group);else collapsedGroups.add(group.dataset.group);
   });
+  renderPersonalFilters();
   const items=filtered();
   renderStats();
   renderFilterControls(items.length);
@@ -291,10 +351,10 @@ function renderLibrary(){
     <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
     </article>`;
   $("#libraryGrid").innerHTML=state.grouped?orderedGroups().map(([category,title])=>{
-    const group=items.filter(x=>x.category===category);
+    const group=items.filter(x=>itemType(x,state.profile)===category);
     if(!group.length)return "";
-    return `<details class="library-group" data-group="${category}" ${collapsedGroups.has(category)?"":"open"}>
-      <summary><span>${title}</span><span class="group-count">${group.length}</span></summary>
+    return `<details class="library-group" data-group="${esc(category)}" ${collapsedGroups.has(category)?"":"open"}>
+      <summary><span>${esc(title)}</span><span class="group-count">${group.length}</span></summary>
       <div class="grid">${group.map(card).join("")}</div>
     </details>`;
   }).join(""):`<div class="grid flat-grid">${items.map(card).join("")}</div>`;
@@ -350,7 +410,7 @@ function renderFilterControls(count){
     $("#genreFilters").innerHTML=genres.length?genres.map(g=>`<label class="genre-option"><input type="checkbox" value="${esc(g)}"><span>${esc(g)}</span></label>`).join(""):"<p class='add-note'>В библиотеке пока нет жанров.</p>";
   }
   $$("#genreFilters input").forEach(el=>el.checked=state.genres.includes(el.value));
-  const active=[state.status,state.category,state.duration,state.rewatch].filter(v=>v!=="all").length+state.genres.length+Number(state.favorite)+Number(!!(state.yearFrom||state.yearTo));
+  const active=[state.status,state.category,state.duration,state.rewatch,state.list].filter(v=>v!=="all").length+state.genres.length+state.tags.length+Number(state.favorite)+Number(!!(state.yearFrom||state.yearTo));
   $("#filterCount").textContent=active;$("#filterCount").classList.toggle("hidden",!active);
   const sortText=$("input[name=librarySort]:checked").nextElementSibling.textContent;
   $("#librarySelection").textContent=`Показано ${count} из ${state.library.length} · ${sortText}${active?` · Фильтров: ${active}`:""}`;
@@ -363,7 +423,7 @@ $("#genreFilters").addEventListener("change",()=>{
   state.genres=$$("#genreFilters input:checked").map(el=>el.value);renderLibrary();
 });
 $("#resetFilters").addEventListener("click",()=>{
-  state.status=state.category=state.duration=state.rewatch="all";state.genres=[];state.favorite=false;state.yearFrom=state.yearTo="";
+  state.status=state.category=state.duration=state.rewatch=state.list="all";state.genres=[];state.tags=[];state.favorite=false;state.yearFrom=state.yearTo="";
   $("#favoriteFilter").checked=false;$("#yearFrom").value=$("#yearTo").value="";$("#yearNote").textContent="Годы выхода включительно. Можно указать только одну границу.";
   $$("#statusFilters .segment").forEach(el=>el.classList.toggle("active",el.dataset.status==="all"));
   ["#typeFilter","#durationFilter","#rewatchFilter"].forEach(id=>$(id).value="all");renderLibrary();
@@ -462,12 +522,13 @@ async function addResult(result,epoch){
 
 function options(values,value){return values.map(v=>`<option value="${v}" ${v===value?"selected":""}>${labels[v]}</option>`).join("")}
 function openItem(x){
+  if(!state.profileLoaded){toast("Настройки ещё загружаются. Попробуй открыть карточку через пару секунд.",true);return}
   state.selected=x;
   const facts=[x.year,x.countries?.join(", "),x.seasons?`${x.seasons} сез.`:"",x.episodes?`${x.episodes} сер.`:"",x.runtime?`${x.runtime} мин.${x.media_type==="tv"?" / серия":""}`:""].filter(Boolean);
   $("#dialogContent").innerHTML=`<div class="detail">
     <div class="detail-poster">${x.poster_url?`<img src="${esc(x.poster_url)}" alt="Постер ${esc(x.title)}">`:'<div class="poster-fallback">✦</div>'}</div>
     <div class="detail-body">
-      <span class="result-kicker">${esc(labels[x.category])} · ${x.media_type==="movie"?"фильм":"сериал"}</span>
+      <span class="result-kicker">${esc(orderedGroups().find(([key])=>key===itemType(x,state.profile))?.[1]||"Без типа")} · ${x.media_type==="movie"?"фильм":"сериал"}</span>
       <h3 id="detailTitle">${esc(x.title)}</h3>
       <div class="detail-facts">${facts.map(f=>`<span>${esc(f)}</span>`).join("")}</div>
       ${durationLabel(x)?`<p class="total-duration">${durationLabel(x)}</p>`:""}
@@ -477,7 +538,7 @@ function openItem(x){
       <form id="editForm" class="edit-form">
         <h4>Мои впечатления</h4>
         <label class="full">Название<input name="title" required maxlength="500" value="${esc(x.title)}"></label>
-        <label>Категория<select name="category">${options(["movie","series","anime","drama","cartoon","bl"],x.category)}</select></label>
+        <label>Категория<select name="category">${typeOptions(itemType(x,state.profile))}</select></label>
         <label>Статус<select name="status">${options(["queue","watching","watched","dropped"],x.status)}</select></label>
         ${x.media_type==="tv"?`<fieldset id="droppedProgress" class="full dropped-progress ${x.status==="dropped"?"":"hidden"}" ${x.status==="dropped"?"":"disabled"}>
           <legend>Где остановилась</legend>
@@ -491,11 +552,15 @@ function openItem(x){
         <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
         <button type="button" id="todayBtn" class="ghost full">Поставить сегодняшнюю дату</button>
+        <fieldset class="full personal-membership"><legend>Мои списки</legend><div class="genre-options">${Object.entries(state.profile?.custom_lists||{}).map(([id,name])=>`<label class="membership-option"><input type="checkbox" name="list_ids" value="${esc(id)}" ${(x.list_ids||[]).includes(id)?"checked":""}> ${esc(name)}</label>`).join("")||'<p class="add-note">Создай списки в настройках.</p>'}</div></fieldset>
+        <label class="full">Мои теги<input name="tags" maxlength="2000" value="${esc((x.tags||[]).join(", "))}" placeholder="уютное, на вечер, с друзьями"><span class="add-note">Через запятую. До 30 тегов, каждый до 60 символов.</span></label>
         <label class="full">Заметки<textarea name="notes" rows="4" placeholder="Что запомнилось?">${esc(x.notes||"")}</textarea></label>
         <p id="editMessage" class="form-message full" role="status"></p>
         <div class="form-actions full"><button type="button" id="deleteBtn" class="danger">Удалить</button><button class="primary" type="submit">Сохранить</button></div>
       </form>
+      <section class="title-diary"><h4>История просмотров</h4><p class="add-note">Сохрани каждый просмотр отдельно, включая пересмотры. Старая дата карточки не переносится автоматически.</p><button id="openTitleDiary" type="button" class="ghost">Открыть дневник тайтла</button></section>
     </div></div>`;
+  $("#openTitleDiary").addEventListener("click",()=>diary.open(x.id));
   $("#editForm").addEventListener("submit",saveItem);
   $("#editForm [name=status]").addEventListener("change",e=>{
     $("#watchedHint").classList.toggle("hidden",e.target.value!=="watched");
@@ -507,7 +572,7 @@ function openItem(x){
     $("#editForm [name=watched_at]").value=now.toISOString().slice(0,10);
   });
   $("#deleteBtn").addEventListener("click",()=>{
-    $("#confirmText").textContent=`«${x.title}» и твои заметки будут удалены из библиотеки. Это действие нельзя отменить.`;
+    $("#confirmText").textContent=`«${x.title}» и твои заметки будут удалены из библиотеки вместе с его записями дневника. Это действие нельзя отменить.`;
     $("#confirmDialog").returnValue="cancel"; $("#confirmDialog").showModal();
   });
   if(!$("#detailDialog").open)$("#detailDialog").showModal();
@@ -545,7 +610,10 @@ function saveItem(e){
       if(progress[key]!==null&&(!Number.isInteger(progress[key])||progress[key]<1||progress[key]>9999)){$("#editMessage").textContent="Укажи целые номера сезона и серии от 1 до 9999.";return}
     }
   }
-  mutateItem("update",{...progress,title,category:form.get("category"),status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
+  const tags=parseTags(form.get("tags"));
+  if(tags.length>30||tags.some(t=>t.length>60)){$("#editMessage").textContent="Можно сохранить до 30 тегов, каждый до 60 символов.";return}
+  const type=form.get("category"),isBase=baseOrder.includes(type);
+  mutateItem("update",{...progress,title,category:isBase?type:state.selected.category,custom_type:isBase?null:type,list_ids:form.getAll("list_ids"),tags,status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
 }
 $("#confirmDialog").addEventListener("close",()=>{if($("#confirmDialog").returnValue==="delete")mutateItem("delete")});
 async function toggleFavorite(id){

@@ -67,6 +67,7 @@
       </section>
 
       <section id="libraryView" class="view active">
+        <div class="personal-nav"><button id="diaryBtn" class="ghost">Дневник</button><button id="statisticsBtn" class="ghost">Статистика</button></div>
         <div class="quick-add">
           <label for="searchInput" class="eyebrow">Добавить в очередь</label>
           <form id="searchForm" class="search-box">
@@ -134,6 +135,8 @@
               <option value="bl">BL / лакорны</option>
             </select></label>
 </div>
+              <div class="filter-fields"><label>Мой список<select id="listFilter" class="select"><option value="all">Все списки</option></select></label></div>
+              <fieldset class="genre-field"><legend>Мои теги</legend><div id="tagFilters" class="genre-options"></div><p class="add-note">Подойдёт любой выбранный тег.</p></fieldset>
               <fieldset class="year-field"><legend>Год выхода</legend><div class="year-range"><label>От<input id="yearFrom" type="number" min="1" max="9999" step="1" placeholder="Любой" inputmode="numeric"></label><label>До<input id="yearTo" type="number" min="1" max="9999" step="1" placeholder="Любой" inputmode="numeric"></label></div><p id="yearNote" class="add-note" role="status">Годы выхода включительно. Можно указать только одну границу.</p></fieldset>
               <fieldset class="genre-field"><legend>Жанры</legend><p class="add-note">Можно выбрать несколько — подойдёт любой из выбранных.</p><div id="genreFilters" class="genre-options"></div></fieldset>
               <button id="applyFilters" type="button" class="primary filter-done">Показать тайтлы</button>
@@ -185,8 +188,30 @@
         <ol id="sectionOrder" class="section-order"></ol>
         <div class="form-actions"><button type="button" id="resetOrder" class="ghost">По умолчанию</button><button type="button" id="saveOrder" class="primary">Сохранить</button></div>
         <p id="settingsNote" class="auth-note" role="status"></p>
+        <section class="personal-settings"><h4>Мои типы</h4><p class="add-note">У каждого свой набор. Удаление типа не удаляет тайтлы — они переходят в «Без типа».</p><div id="typeManager"></div>
+          <form id="newTypeForm" class="inline-create"><input id="newTypeName" required maxlength="60" placeholder="Например, Концерты" aria-label="Название нового типа"><button class="primary">Добавить</button></form>
+        </section>
+        <section class="personal-settings"><h4>Мои списки</h4><p class="add-note">Например, «На вечер», «С друзьями» или «Когда хочется уюта».</p><div id="listManager"></div>
+          <form id="newListForm" class="inline-create"><input id="newListName" required maxlength="60" placeholder="Название списка" aria-label="Название нового списка"><button class="primary">Добавить</button></form>
+        </section><p id="organizationNote" class="auth-note" role="status"></p>
       </div>
     </dialog>
+
+    <dialog id="diaryDialog" class="wide-dialog" aria-labelledby="diaryTitle"><div class="account-body">
+      <button id="diaryClose" class="dialog-close" aria-label="Закрыть">×</button><h3 id="diaryTitle">Дневник просмотров</h3>
+      <p class="auth-copy">Каждый законченный просмотр — отдельная запись со своей датой, оценкой и заметкой. Личные поля карточки не меняются.</p>
+      <form id="diaryForm" class="account-form">
+        <label>Тайтл<select id="diaryItem" required></select></label>
+        <div class="progress-fields"><label>Дата просмотра<input id="diaryDate" type="date" required></label><label>Оценка<select id="diaryRating"><option value="">Без оценки</option></select></label></div>
+        <label class="favorite-field"><input id="diaryRewatch" type="checkbox"> Это пересмотр</label>
+        <label>Заметка к этому просмотру<textarea id="diaryNotes" rows="3" maxlength="5000"></textarea></label>
+        <div class="form-actions"><button id="diaryCancelEdit" class="ghost hidden" type="button">Отменить правку</button><button id="diarySave" class="primary">Записать просмотр</button></div><p id="diaryNote" class="auth-note" role="status"></p>
+      </form>
+      <div class="diary-heading"><h4>История</h4><label>Показать<select id="diaryScope"><option value="all">Все тайтлы</option><option value="selected">Выбранный тайтл</option></select></label><button type="button" id="diaryReload" class="ghost">Обновить</button></div>
+      <div id="diaryEntries"></div>
+    </div></dialog>
+    <dialog id="statisticsDialog" class="wide-dialog" aria-labelledby="statisticsTitle"><div class="account-body"><button id="statisticsClose" class="dialog-close" aria-label="Закрыть">×</button><h3 id="statisticsTitle">Статистика</h3><p class="auth-copy">На основе записей дневника. Старая дата в карточке сама по себе не учитывается. Жанры берутся из текущих данных тайтлов.</p><label class="stats-period">Период<select id="statsYear"></select></label><div id="diaryStatistics"></div></div></dialog>
+    <dialog id="actionConfirm" aria-labelledby="actionConfirmTitle"><form method="dialog" class="confirm-body"><h3 id="actionConfirmTitle">Подтверждение</h3><p id="actionConfirmText"></p><div class="form-actions"><button value="cancel" class="ghost" autofocus>Отмена</button><button value="confirm" class="danger">Удалить</button></div></form></dialog>
 
     <dialog id="detailDialog" aria-labelledby="detailTitle">
       <button class="dialog-close" id="dialogClose" aria-label="Закрыть">×</button>
