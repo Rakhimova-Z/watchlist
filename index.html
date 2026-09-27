@@ -94,8 +94,8 @@
 <label class="sort-option"><input type="radio" name="librarySort" value="duration-desc" ><span>Общее время: сначала длинные</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="title-asc" ><span>По алфавиту: А → Я</span></label>
 <label class="sort-option"><input type="radio" name="librarySort" value="title-desc" ><span>По алфавиту: Я → А</span></label>
-<label class="sort-option"><input type="radio" name="librarySort" value="rating-desc" ><span>Оценка: сначала высокая</span></label>
-<label class="sort-option"><input type="radio" name="librarySort" value="rating-asc" ><span>Оценка: сначала низкая</span></label><p id="sortScope" class="add-note">Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.</p></div>
+<label class="sort-option"><input type="radio" name="librarySort" value="rating-desc" ><span>Общая оценка: сначала высокая</span></label>
+<label class="sort-option"><input type="radio" name="librarySort" value="rating-asc" ><span>Общая оценка: сначала низкая</span></label><p id="sortScope" class="add-note">Внутри каждой группы. Дата выхода — по году; тайтлы без данных идут последними.</p></div>
           </details>
           <details id="filterPanel" class="control-panel" name="library-controls">
             <summary>☷ Фильтры <span id="filterCount" class="group-count hidden"></span></summary>
@@ -204,7 +204,8 @@
       <p class="auth-copy">Смены статуса сохраняются автоматически. Дневник заполнять необязательно: здесь можно дополнить просмотр оценкой и заметкой или записать прошлый просмотр.</p>
       <form id="diaryForm" class="account-form">
         <label>Тайтл<select id="diaryItem" required></select></label>
-        <div class="progress-fields"><label>Дата просмотра<input id="diaryDate" type="date" required></label><label>Оценка<select id="diaryRating"><option value="">Без оценки</option></select></label></div>
+        <div class="progress-fields"><label>Дата просмотра<input id="diaryDate" type="date" required></label><label>Оценка этого просмотра<select id="diaryRating" aria-describedby="viewingRatingHint"><option value="">Без оценки</option></select></label></div>
+        <p id="viewingRatingHint" class="add-note">Может отличаться от общей оценки тайтла. Изменение здесь не меняет оценку на карточке.</p>
         <label class="favorite-field"><input id="diaryRewatch" type="checkbox"> Это пересмотр</label>
         <label>Заметка к этому просмотру<textarea id="diaryNotes" rows="3" maxlength="5000"></textarea></label>
         <label id="diarySeparateLabel" class="favorite-field" hidden><input id="diarySeparate" type="checkbox"> Это ещё один отдельный просмотр в тот же день</label><div class="form-actions"><button id="diaryCancelEdit" class="ghost hidden" type="button">Отменить правку</button><button id="diarySave" class="primary">Записать просмотр</button></div><p id="diaryNote" class="auth-note" role="status"></p>

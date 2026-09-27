@@ -340,7 +340,7 @@ function renderLibrary(){
     <button type="button" class="media-card" data-id="${esc(x.id)}" aria-label="Открыть ${esc(x.title)}">
       <div class="poster-wrap">
         ${x.poster_url?`<img src="${esc(x.poster_url)}" alt="${esc(x.title)}" loading="lazy">`:`<div class="poster-fallback">✦</div>`}
-        ${x.rating?`<span class="rating-badge" aria-label="Оценка ${x.rating} из 10">★ ${x.rating}</span>`:""}
+        ${x.rating?`<span class="rating-badge" title="Моя общая оценка" aria-label="Моя общая оценка: ${x.rating} из 10">★ ${x.rating}</span>`:""}
         <span class="badge">${labels[x.status]||x.status}</span>
         ${x.status==="watched"&&["planned","rewatching"].includes(x.rewatch_status)?`<span class="rewatch-badge">↻ ${labels[x.rewatch_status]}</span>`:""}
       </div>
@@ -554,7 +554,8 @@ function openItem(x){
         <label id="rewatchField" class="full ${x.status==="watched"?"":"hidden"}">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
         <p id="rewatchHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Завершение пересмотра добавит новый просмотр в статистику, сохранив предыдущий.</p>
         <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Просмотр завершён? Можно поставить оценку и дату — или оставить их пустыми.</p>
-        <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
+        <label>Моя общая оценка<select name="rating" aria-describedby="overallRatingHint"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
+        <p id="overallRatingHint" class="add-note full">Оценка тайтла в целом. Показывается на карточке; оценки отдельных просмотров редактируются в дневнике.</p>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
         <button type="button" id="todayBtn" class="ghost full">Поставить сегодняшнюю дату</button>
         <fieldset class="full personal-membership"><legend>Мои списки</legend><div class="genre-options">${Object.entries(state.profile?.custom_lists||{}).map(([id,name])=>`<label class="membership-option"><input type="checkbox" name="list_ids" value="${esc(id)}" ${(x.list_ids||[]).includes(id)?"checked":""}> ${esc(name)}</label>`).join("")||'<p class="add-note">Создай списки в настройках.</p>'}</div></fieldset>
