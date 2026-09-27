@@ -1,4 +1,4 @@
-export const baseTypes=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы'],['bl','BL / лакорны']];
+export const baseTypes=[['movie','Фильмы'],['series','Сериалы'],['anime','Аниме'],['drama','Дорамы'],['cartoon','Мультфильмы']];
 export const baseOrder=baseTypes.map(([key])=>key);
 export function typeCatalog(profile){
   return [...baseTypes.filter(([key])=>!(profile?.hidden_types||[]).includes(key)),...Object.entries(profile?.custom_types||{})];

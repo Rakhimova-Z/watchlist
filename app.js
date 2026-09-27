@@ -47,8 +47,9 @@ const esc = (s="") => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;
 const labels = {
   queue:"очередь",
   watching:"смотрю",
-  watched:"посмотрела",
-  dropped:"бросила",
+  paused:"пауза",
+  watched:"просмотрено",
+  dropped:"брошено",
   none:"Без отметки",
   planned:"Хочу пересмотреть",
   rewatching:"Пересматриваю",
@@ -136,6 +137,7 @@ $("#accountBtn").addEventListener("click",()=>{
   if(!state.user)return;
   $("#setPasswordForm").reset();$("#accountEmail").value=state.user.email||"";
   $("#accountNote").textContent="";
+  $("#genderInput").value=state.profile?.gender||"unspecified";$("#genderNote").textContent="";
   $("#usernameInput").value=state.profile?.username||"";$("#usernameNote").textContent="";
   $("#usernameForm button").disabled=!state.profileLoaded;
   $("#accountDialog").showModal();
@@ -195,13 +197,13 @@ function filtered(){
 }
 
 function renderStats(){
-  const count=s=>state.library.filter(x=>x.status===s).length;
-  $("#stats").innerHTML=`
-    <span class="stat"><strong>${state.library.length}</strong> всего</span>
-    <span class="stat"><strong>${count("queue")}</strong> в очереди</span>
-    <span class="stat"><strong>${count("watching")}</strong> смотрю</span>
-    <span class="stat"><strong>${count("watched")}</strong> посмотрела</span>`;
+  const gender=state.profile?.gender;
+  labels.watched=gender==='male'?'посмотрел':gender==='female'?'посмотрела':'просмотрено';
+  labels.dropped=gender==='male'?'бросил':gender==='female'?'бросила':'брошено';
+  $$('#statusFilters [data-status]').forEach(el=>{el.classList.toggle('active',el.dataset.status===state.status);if(el.dataset.status!=='all')el.textContent=labels[el.dataset.status]});
+  $('#stats').innerHTML=['all','queue','watching','paused','watched','dropped'].map(status=>`<button type="button" class="stat" data-quick-status="${status}" aria-pressed="${state.status===status}"><strong>${status==='all'?state.library.length:state.library.filter(x=>x.status===status).length}</strong> ${status==='all'?'всего':status==='queue'?'в очереди':labels[status]}</button>`).join('');
 }
+$('#stats').addEventListener('click',e=>{const button=e.target.closest('[data-quick-status]');if(!button)return;state.status=button.dataset.quickStatus;renderLibrary()});
 
 const categoryGroups=baseTypes;
 const defaultOrder=baseOrder;
@@ -232,7 +234,7 @@ async function loadProfile(){
 async function saveProfile(changes,note){
   if(profileBusy||!state.user||!state.profileLoaded)return false;
   const epoch=state.epoch;profileBusy=true;note.textContent='Сохраняю…';
-  const controls=$$('#usernameForm input, #usernameForm button, #settingsDialog input, #settingsDialog button');
+  const controls=$$('#genderForm select, #genderForm button, #usernameForm input, #usernameForm button, #settingsDialog input, #settingsDialog button');
   controls.forEach(el=>el.disabled=true);
   try{
     const {data,error}=await supabase.from('watchlist_profiles').upsert({...state.profile,...changes,user_id:state.user.id},{onConflict:'user_id'}).select().single();
@@ -242,6 +244,7 @@ async function saveProfile(changes,note){
   }catch(error){if(epoch===state.epoch)note.textContent=error.code==='23505'?'Это имя уже занято. Попробуй другое.':`Не удалось сохранить: ${error.message}`;return false}
   finally{profileBusy=false;controls.forEach(el=>el.disabled=false);if($('#settingsDialog').open)renderOrder()}
 }
+$('#genderForm').addEventListener('submit',e=>{e.preventDefault();saveProfile({gender:$('#genderInput').value},$('#genderNote'))});
 $('#usernameForm').addEventListener('submit',e=>{e.preventDefault();saveProfile({username:$('#usernameInput').value.trim().toLowerCase()||null},$('#usernameNote'))});
 function renderOrder(){
   $('#sectionOrder').innerHTML=orderDraft.map((key,index)=>{
@@ -345,7 +348,8 @@ function renderLibrary(){
         <h4>${esc(x.title)}</h4>
         <p><span>${x.year||"—"}</span>${x.genres?.[0]?`<span class="primary-genre">${esc(x.genres[0])}</span>`:""}</p>
         ${durationLabel(x)?`<p class="duration">${durationLabel(x)}</p>`:""}
-        ${x.media_type==="tv"&&x.status==="dropped"&&(x.dropped_season||x.dropped_episode)?`<p class="dropped-progress-note">Остановилась: ${[x.dropped_season?`сезон ${x.dropped_season}`:"",x.dropped_episode?`серия ${x.dropped_episode}`:""].filter(Boolean).join(", ")}</p>`:""}
+        ${x.media_type==="movie"&&["dropped","paused"].includes(x.status)&&x.paused_seconds!=null?`<p class="dropped-progress-note">Место остановки: ${formatTimestamp(x.paused_seconds)}</p>`:""}
+        ${x.media_type==="tv"&&["dropped","paused"].includes(x.status)&&(x.dropped_season||x.dropped_episode)?`<p class="dropped-progress-note">Место остановки: ${[x.dropped_season?`сезон ${x.dropped_season}`:"",x.dropped_episode?`серия ${x.dropped_episode}`:""].filter(Boolean).join(", ")}</p>`:""}
       </div>
     </button>
     <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
@@ -521,6 +525,7 @@ async function addResult(result,epoch){
 }
 
 function options(values,value){return values.map(v=>`<option value="${v}" ${v===value?"selected":""}>${labels[v]}</option>`).join("")}
+function formatTimestamp(value){return [Math.floor(value/3600),Math.floor(value/60)%60,value%60].map(n=>String(n).padStart(2,"0")).join(":")}
 function openItem(x){
   if(!state.profileLoaded){toast("Настройки ещё загружаются. Попробуй открыть карточку через пару секунд.",true);return}
   state.selected=x;
@@ -539,16 +544,17 @@ function openItem(x){
         <h4>Мои впечатления</h4>
         <label class="full">Название<input name="title" required maxlength="500" value="${esc(x.title)}"></label>
         <label>Категория<select name="category">${typeOptions(itemType(x,state.profile))}</select></label>
-        <label>Статус<select name="status">${options(["queue","watching","watched","dropped"],x.status)}</select></label>
-        ${x.media_type==="tv"?`<fieldset id="droppedProgress" class="full dropped-progress ${x.status==="dropped"?"":"hidden"}" ${x.status==="dropped"?"":"disabled"}>
-          <legend>Где остановилась</legend>
+        <label>Статус<select name="status">${options(["queue","watching","paused","watched","dropped"],x.status)}</select></label>
+        ${x.media_type==="tv"?`<fieldset id="droppedProgress" class="full dropped-progress ${["dropped","paused"].includes(x.status)?"":"hidden"}" ${["dropped","paused"].includes(x.status)?"":"disabled"}>
+          <legend>Место остановки</legend>
           <div class="progress-fields"><label>Сезон<input name="dropped_season" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указан" value="${x.dropped_season||""}"></label><label>Серия в сезоне<input name="dropped_episode" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указана" value="${x.dropped_episode||""}"></label></div>
           <p class="add-note">Необязательно. Если вернёшься к просмотру, отметка сохранится.</p>
         </fieldset>`:""}
+        ${x.media_type==="movie"?`<label id="movieProgress" class="full ${["paused","dropped"].includes(x.status)?"":"hidden"}">Место остановки<input name="paused_timestamp" placeholder="01:25:30" value="${x.paused_seconds==null?'':formatTimestamp(x.paused_seconds)}"><span class="add-note">Часы:минуты:секунды. Необязательно.</span></label>`:""}
         <label class="full favorite-field"><input type="checkbox" name="is_favorite" ${x.is_favorite?"checked":""}> В избранном</label>
         <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
         <p id="rewatchHint" class="add-note full">Отдельная отметка: статус, оценка и дата прошлого просмотра сохранятся.</p>
-        <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Уже посмотрела? Можно поставить оценку и дату — или оставить их пустыми.</p>
+        <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Просмотр завершён? Можно поставить оценку и дату — или оставить их пустыми.</p>
         <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
         <button type="button" id="todayBtn" class="ghost full">Поставить сегодняшнюю дату</button>
@@ -564,8 +570,9 @@ function openItem(x){
   $("#editForm").addEventListener("submit",saveItem);
   $("#editForm [name=status]").addEventListener("change",e=>{
     $("#watchedHint").classList.toggle("hidden",e.target.value!=="watched");
+    $("#movieProgress")?.classList.toggle("hidden",!["paused","dropped"].includes(e.target.value));
     const progress=$("#droppedProgress");
-    if(progress){progress.classList.toggle("hidden",e.target.value!=="dropped");progress.disabled=e.target.value!=="dropped"}
+    if(progress){progress.classList.toggle("hidden",!["dropped","paused"].includes(e.target.value));progress.disabled=!["dropped","paused"].includes(e.target.value)}
   });
   $("#todayBtn").addEventListener("click",()=>{
     const now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
@@ -604,11 +611,16 @@ function saveItem(e){
   const title=String(form.get("title")).trim();
   if(!title){$("#editMessage").textContent="Название не может быть пустым.";return}
   const progress={};
-  if(state.selected?.media_type==="tv"&&form.get("status")==="dropped"){
+  if(state.selected?.media_type==="tv"&&["dropped","paused"].includes(form.get("status"))){
     for(const key of ["dropped_season","dropped_episode"]){
       const value=form.get(key);progress[key]=value?Number(value):null;
       if(progress[key]!==null&&(!Number.isInteger(progress[key])||progress[key]<1||progress[key]>9999)){$("#editMessage").textContent="Укажи целые номера сезона и серии от 1 до 9999.";return}
     }
+  }
+  if(state.selected?.media_type==="movie"&&["paused","dropped"].includes(form.get("status"))){
+    const value=String(form.get("paused_timestamp")||"").trim();
+    if(value&&!/^\d{1,3}:[0-5]\d:[0-5]\d$/.test(value)){$('#editMessage').textContent='Укажи время в формате 01:25:30.';return}
+    progress.paused_seconds=value?value.split(':').reduce((total,n)=>total*60+Number(n),0):null;
   }
   const tags=parseTags(form.get("tags"));
   if(tags.length>30||tags.some(t=>t.length>60)){$("#editMessage").textContent="Можно сохранить до 30 тегов, каждый до 60 символов.";return}

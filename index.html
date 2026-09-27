@@ -107,6 +107,7 @@
             <button class="segment active" data-status="all">Все</button>
             <button class="segment" data-status="queue">Очередь</button>
             <button class="segment" data-status="watching">Смотрю</button>
+            <button class="segment" data-status="paused">Пауза</button>
             <button class="segment" data-status="watched">Посмотрела</button>
             <button class="segment" data-status="dropped">Бросила</button>
           </div>
@@ -169,6 +170,7 @@
           <p id="usernameNote" class="auth-note" role="status"></p>
         </form>
         <p class="auth-copy">Можно задать или сменить пароль. Вход по ссылке останется доступен — создавать пароль необязательно.</p>
+        <form id="genderForm" class="account-form"><label>Пол<select id="genderInput"><option value="unspecified">Не указан — нейтральные подписи</option><option value="female">Женский — посмотрела, бросила</option><option value="male">Мужской — посмотрел, бросил</option></select></label><button class="ghost" type="submit">Сохранить</button><p id="genderNote" class="auth-note" role="status"></p></form>
         <form id="setPasswordForm" class="account-form">
           <label>Email<input id="accountEmail" type="email" autocomplete="username" readonly></label>
           <label>Новый пароль<input id="newPassword" type="password" required minlength="8" autocomplete="new-password" aria-describedby="passwordHint"></label>
