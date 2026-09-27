@@ -208,3 +208,4 @@ button:disabled{cursor:wait;opacity:.5}
 @media(max-width:640px){.inline-create{flex-wrap:wrap}.inline-create input{flex-basis:100%}.chart-row{grid-template-columns:90px 1fr 25px;gap:8px}.wide-dialog .account-body{padding:48px 20px 24px}}
 
 #stats button.stat{cursor:pointer}#stats button.stat:hover,#stats button.stat[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}#stats button.stat:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#diaryDialog [hidden]{display:none!important}

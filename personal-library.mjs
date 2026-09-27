@@ -14,13 +14,13 @@ export function itemType(item,profile){
 }
 export function parseTags(text){return [...new Set(String(text).split(',').map(s=>s.trim().toLocaleLowerCase('ru')).filter(Boolean))]}
 export function diaryStats(entries,items,year){
-  const selected=entries.filter(e=>!year||e.watched_on.startsWith(String(year)+'-'));
+  const selected=entries.filter(e=>(!e.event_kind||e.event_kind==='completed')&&(!year||e.watched_on?.startsWith(String(year)+'-')));
   const months={},ratings=Array(10).fill(0),genres={},itemMap=new Map(items.map(x=>[x.id,x]));
   if(year)for(let i=1;i<=12;i++)months[`${year}-${String(i).padStart(2,'0')}`]=0;
   for(const e of selected){
-    const month=e.watched_on.slice(0,7);months[month]=(months[month]||0)+1;
+    if(e.watched_on){const month=e.watched_on.slice(0,7);months[month]=(months[month]||0)+1;}
     if(e.rating>=1&&e.rating<=10)ratings[e.rating-1]++;
     for(const genre of new Set(itemMap.get(e.item_id)?.genres||[]))genres[genre]=(genres[genre]||0)+1;
   }
-  return {total:selected.length,rewatches:selected.filter(e=>e.is_rewatch).length,unique:new Set(selected.map(e=>e.item_id)).size,months:Object.entries(months).sort(([a],[b])=>a.localeCompare(b)),ratings,genres:Object.entries(genres).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ru'))};
+  return {undated:selected.filter(e=>!e.watched_on).length,total:selected.length,rewatches:selected.filter(e=>e.is_rewatch).length,unique:new Set(selected.map(e=>e.item_id)).size,months:Object.entries(months).sort(([a],[b])=>a.localeCompare(b)),ratings,genres:Object.entries(genres).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ru'))};
 }

@@ -553,7 +553,7 @@ function openItem(x){
         ${x.media_type==="movie"?`<label id="movieProgress" class="full ${["paused","dropped"].includes(x.status)?"":"hidden"}">Место остановки<input name="paused_timestamp" placeholder="01:25:30" value="${x.paused_seconds==null?'':formatTimestamp(x.paused_seconds)}"><span class="add-note">Часы:минуты:секунды. Необязательно.</span></label>`:""}
         <label class="full favorite-field"><input type="checkbox" name="is_favorite" ${x.is_favorite?"checked":""}> В избранном</label>
         <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
-        <p id="rewatchHint" class="add-note full">Отдельная отметка: статус, оценка и дата прошлого просмотра сохранятся.</p>
+        <p id="rewatchHint" class="add-note full">Завершение пересмотра добавит новый просмотр в статистику, сохранив предыдущий.</p>
         <p id="watchedHint" class="add-note full ${x.status==="watched"?"":"hidden"}">Просмотр завершён? Можно поставить оценку и дату — или оставить их пустыми.</p>
         <label>Оценка<select name="rating"><option value="">Без оценки</option>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${Number(x.rating)===i+1?"selected":""}>${i+1} / 10</option>`).join("")}</select></label>
         <label>Дата просмотра<input type="date" name="watched_at" value="${esc(x.watched_at||"")}"></label>
@@ -564,8 +564,10 @@ function openItem(x){
         <p id="editMessage" class="form-message full" role="status"></p>
         <div class="form-actions full"><button type="button" id="deleteBtn" class="danger">Удалить</button><button class="primary" type="submit">Сохранить</button></div>
       </form>
-      <section class="title-diary"><h4>История просмотров</h4><p class="add-note">Сохрани каждый просмотр отдельно, включая пересмотры. Старая дата карточки не переносится автоматически.</p><button id="openTitleDiary" type="button" class="ghost">Открыть дневник тайтла</button></section>
+      ${x.rewatch_status==="rewatching"?'<button id="finishRewatch" type="button" class="primary">Завершить пересмотр</button>':""}
+      <section class="title-diary"><h4>История просмотров</h4><p class="add-note">История статусов и просмотров сохраняется автоматически. Здесь можно дополнить её заметками.</p><button id="openTitleDiary" type="button" class="ghost">Открыть дневник тайтла</button></section>
     </div></div>`;
+  $("#finishRewatch")?.addEventListener("click",()=>{ $("#editForm [name=status]").value="watched";$("#editForm [name=rewatch_status]").value="none";$("#editForm").requestSubmit() });
   $("#openTitleDiary").addEventListener("click",()=>diary.open(x.id));
   $("#editForm").addEventListener("submit",saveItem);
   $("#editForm [name=status]").addEventListener("change",e=>{
@@ -587,7 +589,7 @@ function openItem(x){
 }
 let editing=false;
 function lockEditor(value){
-  editing=value; $$("#editForm input, #editForm select, #editForm textarea, #editForm button").forEach(el=>el.disabled=value);
+  editing=value; $$("#editForm input, #editForm select, #editForm textarea, #editForm button, #finishRewatch").forEach(el=>el.disabled=value);
   $("#dialogClose").disabled=value;
 }
 async function mutateItem(kind,changes){

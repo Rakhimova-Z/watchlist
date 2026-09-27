@@ -16,3 +16,6 @@ stats=diaryStats(entries,items,'');assert.equal(stats.total,3);assert.equal(stat
 assert.equal(diaryStats([],items,'2026').total,0);
 assert.equal(diaryStats(entries.slice(0,1),items,'2026').total,0);
 console.log('PASS: custom/hidden types, orphan fallback, tag normalization, monthly counts, repeat counts, ratings and multi-genre statistics');
+
+const mixed=[...entries,{event_kind:'status',item_id:'b',watched_on:'2026-03-01',rating:4},{event_kind:'completed',item_id:'c',watched_on:null,rating:7}];
+assert.equal(diaryStats(mixed,items,'').total,4);assert.equal(diaryStats(mixed,items,'').undated,1);assert.equal(diaryStats(mixed,items,'2026').total,2);

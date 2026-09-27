@@ -201,18 +201,18 @@
 
     <dialog id="diaryDialog" class="wide-dialog" aria-labelledby="diaryTitle"><div class="account-body">
       <button id="diaryClose" class="dialog-close" aria-label="Закрыть">×</button><h3 id="diaryTitle">Дневник просмотров</h3>
-      <p class="auth-copy">Каждый законченный просмотр — отдельная запись со своей датой, оценкой и заметкой. Личные поля карточки не меняются.</p>
+      <p class="auth-copy">Смены статуса сохраняются автоматически. Дневник заполнять необязательно: здесь можно дополнить просмотр оценкой и заметкой или записать прошлый просмотр.</p>
       <form id="diaryForm" class="account-form">
         <label>Тайтл<select id="diaryItem" required></select></label>
         <div class="progress-fields"><label>Дата просмотра<input id="diaryDate" type="date" required></label><label>Оценка<select id="diaryRating"><option value="">Без оценки</option></select></label></div>
         <label class="favorite-field"><input id="diaryRewatch" type="checkbox"> Это пересмотр</label>
         <label>Заметка к этому просмотру<textarea id="diaryNotes" rows="3" maxlength="5000"></textarea></label>
-        <div class="form-actions"><button id="diaryCancelEdit" class="ghost hidden" type="button">Отменить правку</button><button id="diarySave" class="primary">Записать просмотр</button></div><p id="diaryNote" class="auth-note" role="status"></p>
+        <label id="diarySeparateLabel" class="favorite-field" hidden><input id="diarySeparate" type="checkbox"> Это ещё один отдельный просмотр в тот же день</label><div class="form-actions"><button id="diaryCancelEdit" class="ghost hidden" type="button">Отменить правку</button><button id="diarySave" class="primary">Записать просмотр</button></div><p id="diaryNote" class="auth-note" role="status"></p>
       </form>
       <div class="diary-heading"><h4>История</h4><label>Показать<select id="diaryScope"><option value="all">Все тайтлы</option><option value="selected">Выбранный тайтл</option></select></label><button type="button" id="diaryReload" class="ghost">Обновить</button></div>
       <div id="diaryEntries"></div>
     </div></dialog>
-    <dialog id="statisticsDialog" class="wide-dialog" aria-labelledby="statisticsTitle"><div class="account-body"><button id="statisticsClose" class="dialog-close" aria-label="Закрыть">×</button><h3 id="statisticsTitle">Статистика</h3><p class="auth-copy">На основе записей дневника. Старая дата в карточке сама по себе не учитывается. Жанры берутся из текущих данных тайтлов.</p><label class="stats-period">Период<select id="statsYear"></select></label><div id="diaryStatistics"></div></div></dialog>
+    <dialog id="statisticsDialog" class="wide-dialog" aria-labelledby="statisticsTitle"><div class="account-body"><button id="statisticsClose" class="dialog-close" aria-label="Закрыть">×</button><h3 id="statisticsTitle">Статистика</h3><p class="auth-copy">Завершённые просмотры учитываются автоматически при смене статуса. Дневник необязателен. Жанры берутся из карточек.</p><label class="stats-period">Период<select id="statsYear"></select></label><div id="diaryStatistics"></div></div></dialog>
     <dialog id="actionConfirm" aria-labelledby="actionConfirmTitle"><form method="dialog" class="confirm-body"><h3 id="actionConfirmTitle">Подтверждение</h3><p id="actionConfirmText"></p><div class="form-actions"><button value="cancel" class="ghost" autofocus>Отмена</button><button value="confirm" class="danger">Удалить</button></div></form></dialog>
 
     <dialog id="detailDialog" aria-labelledby="detailTitle">
