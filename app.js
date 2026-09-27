@@ -285,6 +285,7 @@ function renderLibrary(){
         <h4>${esc(x.title)}</h4>
         <p><span>${x.year||"—"}</span>${x.genres?.[0]?`<span class="primary-genre">${esc(x.genres[0])}</span>`:""}</p>
         ${durationLabel(x)?`<p class="duration">${durationLabel(x)}</p>`:""}
+        ${x.media_type==="tv"&&x.status==="dropped"&&(x.dropped_season||x.dropped_episode)?`<p class="dropped-progress-note">Остановилась: ${[x.dropped_season?`сезон ${x.dropped_season}`:"",x.dropped_episode?`серия ${x.dropped_episode}`:""].filter(Boolean).join(", ")}</p>`:""}
       </div>
     </button>
     <button type="button" class="favorite-btn" data-favorite="${esc(x.id)}" aria-pressed="${!!x.is_favorite}" aria-label="${x.is_favorite?"Убрать из избранного":"В избранное"}: ${esc(x.title)}" ${favoritePending.has(x.id)?"disabled":""}>${x.is_favorite?"♥":"♡"}</button>
@@ -478,6 +479,11 @@ function openItem(x){
         <label class="full">Название<input name="title" required maxlength="500" value="${esc(x.title)}"></label>
         <label>Категория<select name="category">${options(["movie","series","anime","drama","cartoon","bl"],x.category)}</select></label>
         <label>Статус<select name="status">${options(["queue","watching","watched","dropped"],x.status)}</select></label>
+        ${x.media_type==="tv"?`<fieldset id="droppedProgress" class="full dropped-progress ${x.status==="dropped"?"":"hidden"}" ${x.status==="dropped"?"":"disabled"}>
+          <legend>Где остановилась</legend>
+          <div class="progress-fields"><label>Сезон<input name="dropped_season" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указан" value="${x.dropped_season||""}"></label><label>Серия в сезоне<input name="dropped_episode" type="number" min="1" max="9999" step="1" inputmode="numeric" placeholder="Не указана" value="${x.dropped_episode||""}"></label></div>
+          <p class="add-note">Необязательно. Если вернёшься к просмотру, отметка сохранится.</p>
+        </fieldset>`:""}
         <label class="full favorite-field"><input type="checkbox" name="is_favorite" ${x.is_favorite?"checked":""}> В избранном</label>
         <label class="full">Пересмотр<select name="rewatch_status" aria-describedby="rewatchHint">${options(["none","planned","rewatching"],x.rewatch_status||"none")}</select></label>
         <p id="rewatchHint" class="add-note full">Отдельная отметка: статус, оценка и дата прошлого просмотра сохранятся.</p>
@@ -491,7 +497,11 @@ function openItem(x){
       </form>
     </div></div>`;
   $("#editForm").addEventListener("submit",saveItem);
-  $("#editForm [name=status]").addEventListener("change",e=>$("#watchedHint").classList.toggle("hidden",e.target.value!=="watched"));
+  $("#editForm [name=status]").addEventListener("change",e=>{
+    $("#watchedHint").classList.toggle("hidden",e.target.value!=="watched");
+    const progress=$("#droppedProgress");
+    if(progress){progress.classList.toggle("hidden",e.target.value!=="dropped");progress.disabled=e.target.value!=="dropped"}
+  });
   $("#todayBtn").addEventListener("click",()=>{
     const now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
     $("#editForm [name=watched_at]").value=now.toISOString().slice(0,10);
@@ -528,7 +538,14 @@ function saveItem(e){
   e.preventDefault(); const form=new FormData(e.currentTarget);
   const title=String(form.get("title")).trim();
   if(!title){$("#editMessage").textContent="Название не может быть пустым.";return}
-  mutateItem("update",{title,category:form.get("category"),status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
+  const progress={};
+  if(state.selected?.media_type==="tv"&&form.get("status")==="dropped"){
+    for(const key of ["dropped_season","dropped_episode"]){
+      const value=form.get(key);progress[key]=value?Number(value):null;
+      if(progress[key]!==null&&(!Number.isInteger(progress[key])||progress[key]<1||progress[key]>9999)){$("#editMessage").textContent="Укажи целые номера сезона и серии от 1 до 9999.";return}
+    }
+  }
+  mutateItem("update",{...progress,title,category:form.get("category"),status:form.get("status"),is_favorite:form.get("is_favorite")==="on",rewatch_status:form.get("rewatch_status"),rating:form.get("rating")?Number(form.get("rating")):null,watched_at:form.get("watched_at")||null,notes:String(form.get("notes")).trim()||null});
 }
 $("#confirmDialog").addEventListener("close",()=>{if($("#confirmDialog").returnValue==="delete")mutateItem("delete")});
 async function toggleFavorite(id){

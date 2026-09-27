@@ -193,3 +193,7 @@ button:disabled{cursor:wait;opacity:.5}
 #usernameForm{padding-bottom:24px;border-bottom:1px solid var(--line)}
 .user-menu #userEmail{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:860px){.topbar{height:auto;min-height:76px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.user-menu{flex-wrap:wrap;justify-content:flex-end}.user-menu #userEmail{display:block;max-width:110px}.brand{margin-right:auto}}
+
+.hero{min-height:0;padding:32px 0 28px;align-items:center;gap:20px}.hero h2{font-size:clamp(28px,3.4vw,46px);line-height:1.15;letter-spacing:-.04em}.hero .random-card{min-width:0;margin:0;padding:12px 15px;border-radius:16px;box-shadow:none}.hero .random-icon{width:34px;height:34px;border-radius:10px}.hero .random-card small{font-size:11px}
+.dropped-progress{border:1px solid var(--line);border-radius:14px;padding:16px;margin:0;min-width:0}.dropped-progress legend{font-size:13px;color:var(--text);padding:0 6px}.progress-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.media-meta .dropped-progress-note{font-size:11px;color:var(--muted);margin-top:7px}
+@media(max-width:640px){.hero{display:flex;flex-wrap:wrap;padding:26px 0 24px;gap:16px}.hero .random-card{width:auto}.hero h2{font-size:32px}.hero .random-card small{display:none}}
