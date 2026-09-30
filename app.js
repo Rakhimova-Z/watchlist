@@ -66,13 +66,29 @@ function toast(message,error=false){
   clearTimeout(toast.t); toast.t=setTimeout(()=>el.className="toast",2600);
 }
 
+let authSubscribed=false,bootPending=false,authRevision=0;
 async function boot(){
-  const { data:{ session } } = await supabase.auth.getSession();
-  applySession(session);
-  supabase.auth.onAuthStateChange((_event,session)=>applySession(session));
+  if(bootPending)return;
+  bootPending=true;
+  $('#sessionLoadingMessage').textContent='Открываю медиатеку…';$('#sessionRetry').classList.add('hidden');
+  if(!authSubscribed){
+    authSubscribed=true;
+    supabase.auth.onAuthStateChange((_event,session)=>{authRevision++;applySession(session)});
+  }
+  const revision=authRevision;
+  try{
+    const {data,error}=await supabase.auth.getSession();
+    if(revision!==authRevision)return;
+    if(error)throw error;
+    applySession(data?.session||null);
+  }catch{
+    if(revision===authRevision){$('#sessionLoadingMessage').textContent='Не удалось проверить вход. Попробуй ещё раз.';$('#sessionRetry').classList.remove('hidden')}
+  }finally{bootPending=false}
 }
+$('#sessionRetry').addEventListener('click',boot);
 
 function applySession(session){
+  $("#sessionLoading").classList.add("hidden");
   const previous=state.user?.id;
   state.user=session?.user||null;
   if(previous!==state.user?.id){

@@ -14,7 +14,8 @@
 <body>
   <div class="noise"></div>
 
-  <section class="auth-screen" id="authScreen">
+  <section id="sessionLoading" class="session-loading" aria-label="Загрузка медиатеки"><p id="sessionLoadingMessage" role="status">Открываю медиатеку…</p><button id="sessionRetry" type="button" class="ghost hidden">Попробовать снова</button></section>
+  <section class="auth-screen hidden" id="authScreen">
     <div class="auth-card">
       <img class="logo" src="./assets/logo.png" alt="Watchlist" width="72" height="36">
       <p class="eyebrow">Личная медиатека</p>

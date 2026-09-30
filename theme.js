@@ -5,6 +5,7 @@
   function apply(theme){
     current=theme==='pink'?'pink':'lime';
     document.documentElement.dataset.theme=current;
+    document.querySelectorAll('img.logo, img.brand-mark').forEach(img=>{img.src=current==='pink'?'./assets/logo-pink.png':'./assets/logo.png'});
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content',current==='pink'?'#160f18':'#0b0c10');
     document.querySelectorAll('[data-theme-choice]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===current)));
   }
