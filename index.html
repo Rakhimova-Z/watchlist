@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b0c10">
+  <script src="./theme.js"></script>
   <title>Watchlist</title>
   <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
@@ -189,6 +190,7 @@
       <div class="account-body">
         <button id="settingsClose" class="dialog-close" aria-label="Закрыть">×</button>
         <h3 id="settingsTitle">Настройки</h3>
+        <section class="theme-settings" aria-labelledby="themeTitle"><h4 id="themeTitle">Цветовая тема</h4><div id="themeChoices" class="theme-choices"><button type="button" class="theme-choice" data-theme-choice="lime" aria-pressed="true"><span class="theme-swatch lime" aria-hidden="true"></span>Лаймовая</button><button type="button" class="theme-choice" data-theme-choice="pink" aria-pressed="false"><span class="theme-swatch pink" aria-hidden="true"></span>Розовая</button></div><p id="themeNote" class="add-note" role="status">Выбор сохраняется в этом браузере.</p></section>
         <p class="auth-copy">Порядок разделов в библиотеке. Перемещай стрелками — порядок сохранится на всех устройствах.</p>
         <ol id="sectionOrder" class="section-order"></ol>
         <div class="form-actions"><button type="button" id="resetOrder" class="ghost">По умолчанию</button><button type="button" id="saveOrder" class="primary">Сохранить</button></div>
