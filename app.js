@@ -69,6 +69,7 @@ function toast(message,error=false){
 let authSubscribed=false,bootPending=false,authRevision=0;
 async function boot(){
   if(bootPending)return;
+  if($('#sessionLoading').classList.contains('is-error'))window.sessionLoader.begin();
   bootPending=true;$('#sessionLoading').classList.remove('is-error');
   $('#sessionLoadingMessage').textContent='Открываю медиатеку…';$('#sessionRetry').classList.add('hidden');
   if(!authSubscribed){
@@ -82,12 +83,13 @@ async function boot(){
     if(error)throw error;
     applySession(data?.session||null);
   }catch{
-    if(revision===authRevision){$('#sessionLoading').classList.add('is-error');$('#sessionLoadingMessage').textContent='Не удалось проверить вход. Попробуй ещё раз.';$('#sessionRetry').classList.remove('hidden')}
+    if(revision===authRevision){window.sessionLoader.fail();$('#sessionLoading').classList.add('is-error');$('#sessionLoadingMessage').textContent='Не удалось проверить вход. Попробуй ещё раз.';$('#sessionRetry').classList.remove('hidden')}
   }finally{bootPending=false}
 }
 $('#sessionRetry').addEventListener('click',boot);
 
-function applySession(session){
+function applySession(session){window.sessionLoader.finish(()=>renderSession(session))}
+function renderSession(session){
   $("#sessionLoading").classList.add("hidden");
   const previous=state.user?.id;
   state.user=session?.user||null;

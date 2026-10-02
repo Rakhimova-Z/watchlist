@@ -226,3 +226,5 @@ img.logo{width:72px;height:36px;object-fit:contain;background:none;border-radius
 .session-loading.is-error .session-reel svg{animation-play-state:paused;opacity:.5}
 @keyframes session-reel-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.session-reel svg{animation:none}}
+
+.session-loading.is-pending>*{visibility:hidden}
