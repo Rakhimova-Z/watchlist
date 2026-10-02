@@ -69,7 +69,7 @@ function toast(message,error=false){
 let authSubscribed=false,bootPending=false,authRevision=0;
 async function boot(){
   if(bootPending)return;
-  bootPending=true;
+  bootPending=true;$('#sessionLoading').classList.remove('is-error');
   $('#sessionLoadingMessage').textContent='Открываю медиатеку…';$('#sessionRetry').classList.add('hidden');
   if(!authSubscribed){
     authSubscribed=true;
@@ -82,7 +82,7 @@ async function boot(){
     if(error)throw error;
     applySession(data?.session||null);
   }catch{
-    if(revision===authRevision){$('#sessionLoadingMessage').textContent='Не удалось проверить вход. Попробуй ещё раз.';$('#sessionRetry').classList.remove('hidden')}
+    if(revision===authRevision){$('#sessionLoading').classList.add('is-error');$('#sessionLoadingMessage').textContent='Не удалось проверить вход. Попробуй ещё раз.';$('#sessionRetry').classList.remove('hidden')}
   }finally{bootPending=false}
 }
 $('#sessionRetry').addEventListener('click',boot);
